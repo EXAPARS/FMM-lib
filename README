@@ -1,0 +1,56 @@
+           \\\||||||////
+            \\  ~ ~  //
+             (  @ @  )
+    _______ oOOo-(_)-oOOo___________
+   |                                |
+   |             FMM                |
+   |                                |   
+   |        Comment démarrer ?      |
+   |                                |
+   |                                |
+   |______________Oooo._____________|
+       .oooO     (   )
+        (   )     ) /
+         \ (     (_/
+          \_)
+
+
+Dépendances :
+===============
+- Tests unitaires
+CppUnit
+http://freedesktop.org/wiki/Software/cppunit/
+
+- Visu OpenGL
+glut : apt-get install freeglut3-dev
+glew : apt-get install libglew-dev
+glm : apt-get install libglm-dev 
+
+- Documentation Doxygen
+Graphviz : apt-get install graphViz
+
+
+
+Compilation :
+===============
+1) Generation du Makefile avec cmake
+
+- dossier build
+cmake CMakeLists.txt
+Si cmake ne trouve pas mpi.h
+	- decommenter les lignes 73, 74 et 75
+	- indiquer le chemin
+
+2) Compilation
+FMM :
+	- make fmm
+
+OpenGL :
+	- make viz
+
+Generateur de particules :
+	- make gen
+
+Tests Unitaires :
+	- test_seq
+	- test_parll
