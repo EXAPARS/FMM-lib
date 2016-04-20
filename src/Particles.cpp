@@ -82,7 +82,6 @@ Particles::Particles(int nbParticles, string file, Gaspi_communicator * gComm)
 }
 
 
-
 				
 /*----------------------------------------------------------------------
 							Getters
@@ -173,7 +172,7 @@ void Particles::loadCoordinatesASCII(const string & file)
 void Particles::scale()
 {	
 	// compute scaling parameters
-	/*double min, max;
+	double min, max;
 	min = max = 0;	
 	for (int i=0; i<_nbParticles; i++)
 	{
@@ -184,7 +183,11 @@ void Particles::scale()
 			else if (_coordinates[i][j] < min)
 				min = _coordinates[i][j];
 		}			
-	}*/
+	}
+	
+	double global_max, global_min;
+	MPI_Allreduce(&min, &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+	MPI_Allreduce(&max, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	
 	/** F7X **/
 	/** ATTENTION SCALING EN DUR CALCULE PAR RAPPORT A 1 MPI**/	
@@ -193,15 +196,21 @@ void Particles::scale()
 **/
 	
 	/** DRONERA **/
-	double min = -1436.6006;
-	double max = 1913.9934;
+	//double min = -1436.6006;
+	//double max = 1913.9934;	
+	
+	/** SPHERE 3GHZ **/
+	/*double min = -100.0;
+	double max = 100.0;*/
+	cout << "---------------- global_min " << global_min << endl;
+	cout << "---------------- global_max " << global_max << endl;
 
 /*cout << setprecision(8);
 cout << min << endl;
 cout << max << endl;
 */
-	double coeff = COORDMAX / (max - min) ;
-	double translate = min * -1.0;
+	double coeff = COORDMAX / (global_max - global_min) ;
+	double translate = global_min * -1.0;
 /*
 cout << coeff << endl;
 cout << translate << endl;
@@ -260,6 +269,46 @@ void Particles::loadCoordinatesASCII(const int & nbParticles, const string & fil
 	_coordinates = new vec3D[nbParticles];	
 	loadCoordinatesASCII(file);
 }
+
+/**
+* Loads the coordinates into the Class Variable _coordinates - Without knowing the number of coordinates to read .\n
+* Updates the instance attributes, allocates the Class variable _coordinates and reads the coordinates from file.
+* @param file : File containing the coordinates.
+*/
+void Particles::loadCoordinatesASCIIWithoutQuantity(const string & file)
+{
+	fstream in;
+	in.exceptions(ifstream::failbit|ifstream::badbit);
+	try
+	{
+		in.open(file, ifstream::in);
+		
+		// get number of nodes
+		int nbParticles = std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');			
+		_last = _first + nbParticles - 1;	
+		_nbParticles = nbParticles;
+		_coordinates = new vec3D[nbParticles];
+		
+		// load into _coordinates
+		in.seekg(0, ios::beg);
+		int index = 0;
+		while (index < _nbParticles)
+		{
+			in >> _coordinates[index].x;
+			in >> _coordinates[index].y;
+			in >> _coordinates[index].z;			
+			index++;
+		}
+		in.close();		
+	}
+	catch(ifstream::failure e)
+	{
+		cerr << "[erreur] " << e.what() << endl;
+		exit(0);
+	}
+}
+
+
 
 /**
 * Sets the attributes _nbParticles, _first, _edge and _origin.

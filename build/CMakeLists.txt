@@ -53,7 +53,7 @@ add_library (
 )
 
 # verbosity
-set (CMAKE_VERBOSE_MAKEFILE 1)
+set (CMAKE_VERBOSE_MAKEFILE 0)
 
 # MPI
 find_package (MPI REQUIRED)

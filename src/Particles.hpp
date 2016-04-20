@@ -73,7 +73,9 @@ public:
 	void loadCoordinates(const string & file);
 	void loadCoordinatesASCII(const string & file);
 	void loadCoordinatesASCII(const int & nbParticles, const string & file);
-	void loadCoordinatesASCII(const int & nbParticles, const string & file, Gaspi_communicator * gComm);		
+	void loadCoordinatesASCII(const int & nbParticles, const string & file, Gaspi_communicator * gComm);
+	void loadCoordinatesASCIIWithoutQuantity(const string & file);
+		
 	void scale();
 	
 	void setAttributes(const int & index, const int & nbParticles, const int & edge, const vec3D & o);
@@ -81,6 +83,24 @@ public:
 	void setNewCoordinates(vec3D * newCoords, const int & nbParticles) 
 	{ 	
 		_coordinates = newCoords;
+		_nbParticles = nbParticles;
+	}
+	void copyNewCoordinates(vec3D * newCoords, const int & nbParticles)
+	{
+		if (_coordinates)
+			delete _coordinates;
+		
+		_coordinates = new vec3D[nbParticles];
+		
+		for (int i=0; i<nbParticles; i++)
+		{
+			_coordinates[i].x = newCoords[i].x;
+			_coordinates[i].y = newCoords[i].y;
+			_coordinates[i].z = newCoords[i].z;
+		}
+		
+		_first = 0;
+		_last = nbParticles - 1;
 		_nbParticles = nbParticles;
 	}
 
