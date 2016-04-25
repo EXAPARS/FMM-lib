@@ -17,21 +17,19 @@
 cmake_minimum_required (VERSION 2.6)
 
 PROJECT (FMM)
-set (CMAKE_CXX_COMPILER g++)
+set (CMAKE_CXX_COMPILER icpc)
 
 # variables
 set (LIBRARY_OUTPUT_PATH ../lib/${CMAKE_BUILD_TYPE})
-
 set (GASPI_VERSION "gpi")
-set (GASPI_DIR "/home/nath/opt/${GASPI_VERSION}")
+set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/${GASPI_VERSION}")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
-
-set (FMM_DIR "/home/nath/Documents/Dassault-UVSQ/FMM/FMM-lib")
+set (FMM_DIR "/da/soc/groupes/csc/projet.h4h/d101219/FMM/FMM-lib")
 set (FMM_INCLUDE "${FMM_DIR}/include")
 set (FMM_HEADERS "${FMM_DIR}/src")
 
 MESSAGE( STATUS "GASPI_DIR:				" ${GASPI_DIR} )
-MESSAGE( STATUS "GASPI_INCLUDE:			" ${GASPI_INCLUDE} )
+MESSAGE( STATUS "GASPI_INCLUDE:			        " ${GASPI_INCLUDE} )
 MESSAGE( STATUS "FMM_DIR:				" ${FMM_DIR} )
 MESSAGE( STATUS "FMM_INCLUDE:				" ${FMM_INCLUDE} )
 MESSAGE( STATUS "FMM_HEADERS:				" ${FMM_HEADERS} )
@@ -53,7 +51,7 @@ add_library (
 )
 
 # verbosity
-set (CMAKE_VERBOSE_MAKEFILE 0)
+set (CMAKE_VERBOSE_MAKEFILE 1)
 
 # MPI
 find_package (MPI REQUIRED)

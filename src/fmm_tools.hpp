@@ -19,6 +19,7 @@
 #ifndef FMM_TOOLS_HPP
 #define FMM_TOOLS_HPP
 
+#include "mpi.h"
 #include "types.hpp"
 #include <string>
 #include <iostream>
@@ -31,6 +32,7 @@ void announce_axis(string axis, int rank);
 void displayHexa2Dim (string info, ui64 ** tab, int dim1, int dim2);
 void displayDiff (string info, int * tab, int size);
 void displayMpiMSG (int source, int tag);
+void dfs_dump_spectre_octree(i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID);
 
 
 

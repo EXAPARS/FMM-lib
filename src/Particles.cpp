@@ -427,7 +427,7 @@ Particles * Particles::divideOctree()
 	Particles * p = new Particles[8];
 	
 	/// MORTON ORDER	
-	p[0].setAttributes( _first, 	  	  qty[0], halfEdge, vec3D(xMIN, yMID, zMIN) );	//2
+	p[0].setAttributes( _first,   	      qty[0], halfEdge, vec3D(xMIN, yMID, zMIN) );	//2
 	p[1].setAttributes( _first + sums[0], qty[1], halfEdge, vec3D(xMID, yMID, zMIN) );	//3
 	p[2].setAttributes( _first + sums[1], qty[2], halfEdge, vec3D(xMIN, yMIN, zMIN) );	//1
 	p[3].setAttributes( _first + sums[2], qty[3], halfEdge, vec3D(xMID, yMIN, zMIN) );	//0

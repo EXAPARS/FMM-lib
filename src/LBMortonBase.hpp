@@ -26,8 +26,6 @@ using namespace std;
 
 class LBMortonBase{
 public:	
-	void hello() const { cout << "hello from morton base" << endl; }
-		
 	template<typename T>
 	void computeMortonSeps(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
 		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
@@ -36,7 +34,6 @@ public:
 	template<typename T>		
 	void computeMortonOneSep(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
 		const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const;
-	
 };
 
 

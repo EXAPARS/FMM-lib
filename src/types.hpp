@@ -39,6 +39,7 @@ enum LB				// Load Balancing
 
 typedef uint32_t ui32;
 typedef uint64_t ui64;
+typedef int64_t i64;
 
 /**
  * Constants
