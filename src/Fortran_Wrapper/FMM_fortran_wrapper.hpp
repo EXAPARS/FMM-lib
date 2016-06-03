@@ -23,7 +23,7 @@
 
 extern "C"
 {
-	void fmm_load_balance_(i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner);
+	void fmm_load_balance_(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwners, double * centers, i64 * endlev, i64 * nbLevels);
 }
 
 #endif

@@ -45,7 +45,7 @@ typedef int64_t i64;
  * Constants
  */
   
-#define COORDMAX 2147483648
+#define COORDMAX 2147483648  // 2 ^ 31, max value on 32 bits is 2^32-1
 #define H16_SIZE 65536
 #define H12_SIZE 4096
 #define H4_SIZE 16

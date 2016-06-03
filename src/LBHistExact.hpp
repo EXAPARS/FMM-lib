@@ -29,7 +29,7 @@ class HistExact
 public:
 	template <typename T>
 	void loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, double tol,
-		const int & first, const int & last, Gaspi_communicator & gComm) const 
+		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const 
 	{ 
 		cout << "--> Exact Histogram load balancing" << endl; 
 
@@ -47,7 +47,7 @@ public:
 		while(!bfsList.empty())
 		{
 			// update ptr
-			Node<T> * ptr = bfsList.front();		
+			Node<T> * ptr = bfsList.front();
 			
 			// if it is a leaf and targeted depth is not reached -> recurse on the complete level
 			if ( (ptr->isLeaf()) && (static_cast<unsigned int>(ptr->getDepth()) < nb1ers._list.size() ) ) 

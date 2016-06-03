@@ -32,8 +32,12 @@ void announce_axis(string axis, int rank);
 void displayHexa2Dim (string info, ui64 ** tab, int dim1, int dim2);
 void displayDiff (string info, int * tab, int size);
 void displayMpiMSG (int source, int tag);
-void dfs_dump_spectre_octree(i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID);
+void dfs_dump_spectre_octree(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers);
+void dfs_dump_centers(string prefix, i64 * nbSonsPerNode, i64 * firstSonId, i64 nodeID, double * centers);
 
+
+void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers, 
+	i64 * endlev, i64 * nbLevels);
 
 
 void verbose(int rank, string message);

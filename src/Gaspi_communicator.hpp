@@ -53,13 +53,13 @@ public:
 	gaspi_rank_t _rank;
 
 	// segments Ids
-	const gaspi_segment_id_t _seg_RecvBuffer_id = 	0;// Receive Buffer 
-	const gaspi_segment_id_t _seg_LocalBuffer_id = 	1;// Local Buffer
-	const gaspi_segment_id_t _seg_SepNodes_id = 	2;// SepNodes Buffer
-	const gaspi_segment_id_t _seg_NbUntilNode_id = 	3;// NbUntilNode Buffer
-	const gaspi_segment_id_t _seg_InitCoords_id = 	4;// Coords
-	const gaspi_segment_id_t _seg_NewCoords_id = 	5;// newCoords
-	const gaspi_segment_id_t _seg_CommInfos_id = 	6;// info
+	gaspi_segment_id_t _seg_RecvBuffer_id; //= 	0;// Receive Buffer 
+	gaspi_segment_id_t _seg_LocalBuffer_id; //= 	1;// Local Buffer
+	gaspi_segment_id_t _seg_SepNodes_id; //= 	2;// SepNodes Buffer
+	gaspi_segment_id_t _seg_NbUntilNode_id; //= 	3;// NbUntilNode Buffer
+	gaspi_segment_id_t _seg_InitCoords_id; //= 	4;// Coords
+	gaspi_segment_id_t _seg_NewCoords_id; //= 	5;// newCoords
+	gaspi_segment_id_t _seg_CommInfos_id; //= 	6;// info
 	
 	// usual pointers on values in segments
 	int * _recvBuffer = nullptr;

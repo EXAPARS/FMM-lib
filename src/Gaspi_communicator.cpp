@@ -11,6 +11,15 @@ Gaspi_communicator::Gaspi_communicator(int nbLeaves, int nbParticles)
 	//nbSeps
 	int nbSeps = _wsize - 1;
 	
+	// segments ids
+	_seg_RecvBuffer_id = 	0;// Receive Buffer 
+	_seg_LocalBuffer_id = 	1;// Local Buffer
+	_seg_SepNodes_id = 		2;// SepNodes Buffer
+	_seg_NbUntilNode_id = 	3;// NbUntilNode Buffer
+	_seg_InitCoords_id = 	4;// Coords
+	_seg_NewCoords_id = 	5;// newCoords
+	_seg_CommInfos_id = 	6;// info
+	
 	// segments sizes
 	_seg_RecvBuffer_size = _wsize * nbLeaves * sizeof(int);
 	_seg_LocalBuffer_size = _wsize * nbLeaves * sizeof(int);

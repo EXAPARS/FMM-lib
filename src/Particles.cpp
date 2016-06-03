@@ -640,9 +640,9 @@ void Particles::swapOctree(int * sums, int * boxDest)
 
 /**
 * This method computes the exact separators thanks to histograms.
-* The particles are swapped to respect the new separators.
+* The particles are swapped with respect to the new separators.
 * The flatIdxes array is updated with the new separators.
-* P is filled with th new particles in order to update the level of nodes. 
+* P is filled with the new particles in order to update the level of nodes. 
 * @param depth : Current depth.
 * @param decomp : Prime numbers decomposition list.
 * @param level : Complete level of nodes on the current depth
@@ -653,8 +653,7 @@ void Particles::swapOctree(int * sums, int * boxDest)
 void Particles::compSepHistExact(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize)
 {	
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	// get parts, seps, dim and workers
 	int nbParts = decomp._list[depth]; 	 				 
@@ -726,6 +725,9 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 	if (rank < nbWorkers)
 		globalHist = new int [H12_SIZE]();
 
+	/* TODO : SepExp est la 1ère partie, donc toujours calculé par 1 seul MPI, boucle for inutile ?
+	 * Idem pour tous les tests de rank < nbWorkers => if rank == 0, ou ne faire appeler cette fonction que par le Root depuis CompSepHistApprox*/
+	 
 	// Histograms and reductions
 	int index=0;
 	for (int rank=0; rank < nbWorkers; rank++)
@@ -827,7 +829,7 @@ void Particles::compSepMantExact(const int & sumNbItems, const char & histType, 
 ----------------------------------------------------------------------*/
 
 /**
-* This method computes approximates separators. 
+* This method computes approximated separators. 
 * The separators are modified in order to stick to the octree grid.
 * The tree height is computed in order to know the separators coordinates.
 * @param depth : Current depth.
@@ -1283,10 +1285,11 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 	}
 	
 	// Find Separators
-	// Histogram's positive's values only	
+	// Histogram's positive's values only	4096/2 = 2048
+	/* FIXME : Is this a BUG ???? WHY 2046 and not 2047 ? */
 	for(int i=0; i<=2046; i++)
 		
-		// For each separator		
+		// For each separator
 		for (int k=0; k<nbSeps; k++)
 		
 			// If not already treated
@@ -1329,8 +1332,7 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 **/
 void compSepM(const int * globalHist, const int & nbSeps, const int & sumNbItems,
 	int & localSep, const int & numSep, int & nbUnderSep, int chunkSize)
-{	
-
+{
 	int nbParts = nbSeps+1;		
 	int cpt = nbUnderSep;
 	int max = (sumNbItems/nbParts)*(numSep+1);
@@ -1443,13 +1445,13 @@ void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32
 	min = *((double *)&(separators[k]));		
 	ui64 valMax = separators[k] | mask;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 	max = *((double *)&(valMax));	
-#pragma GCC diagnostic pop	
+//#pragma GCC diagnostic pop	
 
 	diff = max - min;
-	
+
 	// if min and max are separated by less than a square side
 	if ( diff < c ) 
 	{
@@ -1465,10 +1467,10 @@ void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32
 			
 			// cast the separator to double and update separators array
 			double sep = static_cast<double>(sepMin);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 			separators[k] = *(ui64 *)&(sep);
-#pragma GCC diagnostic pop	
+//#pragma GCC diagnostic pop	
 		}
 	}			
 }

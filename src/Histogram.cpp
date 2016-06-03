@@ -41,7 +41,7 @@ void BFHistogram::constructHistE(vec3D * coordinates, const int & first, const i
 	for (int i=first; i<=last; ++i)
 	{			
 		db_as_int = (ui64 *)&(coordinates[i][_axis]);		
-		s_and_exp = (*db_as_int >> 52) & 0xFFF;		
+		s_and_exp = (*db_as_int >> 52) & 0xFFF;		/*TODO : est-ce que le & est utile ?*/
 		_histo[s_and_exp]++;
 	}
 }

@@ -32,6 +32,8 @@
 #include "vec3D.hpp"
 
 #include "fmm_tools.hpp"
+// TEMPORARILY USE a STL STACK
+#include <stack>
 
 using namespace std;
 
@@ -59,6 +61,9 @@ public:
 	// destructors
 	~Node<T>();
 
+	// read octree
+	void read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, double * centers);
+
 	// getters & setters
 	Node<T> * getParent() const { return _parent; }
 	int getDepth() const { return _depth; }
@@ -68,13 +73,17 @@ public:
 	T getContent() const { return _content; }
 	T & getContent() { return _content; }
 	Node<T> * getNodePtr(const int64_t & id);
+	Node<T> * getNodePtrF(const int64_t & id);	 // Fortran flat incomplete Octree
+	Node<T> * goToTarget(const int64_t & id);
+	Node<T> * getFirstLeafDescendant();
+	Node<T> * getLastLeafDescendant();
 	int getNbItems() {return getContent().getNbParticles(); }
 	void setChildren(T * content, const int & nbChilds);
 
 	// tree functions
 	int64_t computeId(const int & height, const int64_t & root, const int & LeafIndex);
 	int64_t getAncesterAtLevel(const int & level);
-	bool isLeaf() { return (_nbChildren == 0);}
+	bool isLeaf(){ return (_nbChildren <= 0); } // spectre = -1 => LEAF
 	int countLeaves();
 	
 	// recursive Octree Division
@@ -84,8 +93,10 @@ public:
 	void recDivideOctreeH(const int & Height);
 	
 	// tree leaves infos	
-	void FillSendBuffer(int * buffer, int targetLevel);	
+	void FillSendBuffer(int * buffer, int targetLevel);
+	void FillSendBufferAndIds(int * buffer, i64 * IDs, int targetLevel);
 	void traverseAndFillLeaves(int * buffer, int targetLevel);
+	void traverseAndFillLeavesAndIDs(int * buffer, i64 * IDs, int targetLevel);
 	void findLastParticleIndex(const int64_t & myNodeID, int & particleIndex);
 	void recSearchLastParticleBeforeNode(Node<T> * treeHead, const int64_t & myID, const int & myDepth, int & value);
 		
@@ -177,6 +188,48 @@ Node<T>::~Node<T>()
 }
 
 /*----------------------------------------------------------------------
+			Construct Octree by reading other octree format
+----------------------------------------------------------------------*/
+template<typename T>
+void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, double * centers)
+{
+	i64 nodeID = this->_id;
+	i64 nbChildren = nbSonsPerNode[nodeID];
+	_nbChildren = nbChildren;
+	
+	if (nbChildren > 0)
+	{
+		i64 fSonID = firstSonId[nodeID]-1; // Fortran array indices start with 1 instead of 0
+		/**cout << "READING Fortran Octree nodeID : " << nodeID << ", nbChildren : " << nbChildren << ",fson : " << fSonID << ", nbElements : " << getContent().getNbParticles()  
+			 << ", level : " << _depth << endl;**/
+		
+		// allocate the children nodes, update them and recursive call
+		T * pTab = new Particles[nbChildren];
+		_children = new Node<T>* [nbChildren];
+
+		for (int i=0; i<nbChildren; ++i)
+		{
+			_children[i] = new Node<T>();
+			_children[i]->_parent = this;				
+			_children[i]->_depth = _depth + 1;
+			_children[i]->_id = (fSonID + i);
+			
+			// Content update
+			pTab[i].setAttributes( 0 , nbElemPerNode[(fSonID+i)], 0, vec3D(centers[(fSonID*3)],centers[(fSonID*3)+1],centers[(fSonID*3)+2]) ); /*0, 0, 0*/
+			_children[i]->_content = pTab[i];
+			
+			// recursive call
+			_children[i]->read_octree(nbElemPerNode, firstElemAdress, nbSonsPerNode, firstSonId, centers);
+		}
+
+		delete [] pTab;
+	}
+	else
+	{
+		/**cout << "READING Fortran Octree nodeID : " << nodeID << ", this node is a LEAF" <<", containing : " << getContent().getNbParticles() << ", level : " << _depth << endl; **/
+	}
+}
+/*----------------------------------------------------------------------
 							Getters & Setters
 ----------------------------------------------------------------------*/
 
@@ -228,6 +281,83 @@ Node<T> * Node<T>::getNodePtr(const int64_t & id)
 	
 	return n;
 }
+
+template<typename T>
+Node<T> * Node<T>::getNodePtrF(const int64_t & targetID)
+{
+	//cout << "Getting pointer on : " << targetID << endl;
+	// Pointer on the root of the tree
+	Node<T> * n = this;
+	while(n->getId() != 0)
+		n = n->getParent();
+
+	// Initiate the DFS search
+	if (targetID == 0)
+		return n;
+	else
+	{
+		n = goToTarget(targetID);
+		//printf( "Returning the target node. id = %ld, depth = %d\n",n->getId(), n->getDepth());
+		return n;
+	}
+}
+
+template<typename T>
+Node<T> * Node<T>::goToTarget(const int64_t & targetID)
+{
+	stack<Node<T>*> st;
+	Node<T> * tmp = nullptr;
+	Node<T> * res = nullptr;
+	bool found = false;
+	
+	st.push(this);
+	while (!st.empty() && !found)
+	{
+		// pop a node and if it is the target
+		tmp = st.top();
+		st.pop();
+		if (tmp->_id == targetID)
+		{
+			//printf( "Found the target node. id = %ld, depth = %d\n",tmp->getId(), tmp->getDepth());	
+			res = tmp;
+			found = true;
+		}
+		// push the children into the stack
+		else
+		{
+			for (int i=0; i<tmp->getNbChildren(); i++)
+				st.push(tmp->getChildren()[i]);
+		}
+	}
+	return res;
+}
+
+template<typename T>
+Node<T> * Node<T>::getFirstLeafDescendant()
+{
+	Node<T> * tmp = this;
+	
+	while (!tmp->isLeaf())
+	{
+		tmp = tmp->getChildren()[0];
+	}
+	
+	return tmp;
+}
+
+template<typename T>
+Node<T> * Node<T>::getLastLeafDescendant()
+{
+	Node<T> * tmp = this;
+	
+	while (!tmp->isLeaf())
+	{
+		tmp = tmp->getChildren()[tmp->getNbChildren()-1];
+	}
+	
+	return tmp;
+}
+
 
 template<typename T>
 void Node<T>::setChildren(T * content, const int & nbChilds)
@@ -398,13 +528,47 @@ void Node<T>::FillSendBuffer(int * buffer, int targetLevel)
 	traverseAndFillLeaves(buffer, targetLevel);	
 }
 
+template<typename T>
+void Node<T>::FillSendBufferAndIds(int * buffer, i64 * IDs, int targetLevel)
+{
+	// init static counter
+	cptLeaves = -1;	
+	
+	// traverse the tree and fill the buffer with the leaves information
+	traverseAndFillLeavesAndIDs(buffer, IDs, targetLevel);
+}
+
 /**
 * Recursive method that fills a buffer with the number of particles in the leaves. \n
 */
 template<typename T>
+void Node<T>::traverseAndFillLeavesAndIDs(int * buffer, i64 * IDs, int targetLevel)
+{
+	//cout << "Depth : "<< getDepth() << endl;
+	if( getDepth() < targetLevel )
+	{
+		// Recursive calls
+		for (int i=0; i<_nbChildren; ++i)
+			_children[i]->traverseAndFillLeavesAndIDs(buffer, IDs, targetLevel);
+	}
+	else if ( getDepth() == targetLevel )
+	{
+		// Update buffer
+		Node<T>::cptLeaves++;
+		buffer[cptLeaves] = getContent().getNbParticles();
+		IDs[cptLeaves] = getId();
+	}
+	else if ( getDepth() > targetLevel )
+	{
+		cerr << "[traverseAndFillLeavesAndIDs] depth > targetLevel" << endl;
+		exit(1);
+	}
+}
+
+template<typename T>
 void Node<T>::traverseAndFillLeaves(int * buffer, int targetLevel)
 {
-	
+	//cout << "Depth : "<< getDepth() << endl;
 	if( getDepth() < targetLevel )
 	{
 		// Recursive calls
@@ -423,6 +587,7 @@ void Node<T>::traverseAndFillLeaves(int * buffer, int targetLevel)
 		exit(1);
 	}
 }
+
 
 template<typename T>
 void Node<T>::findLastParticleIndex(const int64_t & myNodeID, int & particleIndex)

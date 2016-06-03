@@ -19,7 +19,7 @@
 #include "Decomposition.hpp"
 
 decompo::decompo(int nb)
-{		
+{
 	create(nb);
 }
 

@@ -31,9 +31,19 @@ public:
 		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
 		const int64_t & rootNodeID, const int & divHeight) const;
 
+	template<typename T>
+	void computeMortonSeps2(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
+		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
+		const int64_t & rootNodeID, const int & divHeight) const;
+
 	template<typename T>		
 	void computeMortonOneSep(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
 		const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const;
+	
+	template<typename T>		
+	void computeMortonOneSep2(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
+		const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const;
+
 };
 
 
@@ -64,7 +74,41 @@ void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, cons
 	
 	// Dealloc
 	delete [] tabDone;
-}	
+}
+
+template<typename T>
+void LBMortonBase::computeMortonSeps2(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
+	const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
+	const int64_t & rootNodeID, const int & divHeight) const
+{	
+	int aux = 0;
+	// verif
+	for (int i=0; i< nbLeaves; i++)
+		aux += globalBuffer[i];
+	
+	int * tabDone = new int[nbSeps]();				// Flag indicating the separator's state		
+
+	for (int i=0; i<nbLeaves; i++) 					// for each box
+		for (int k=0; k<nbSeps; k++)				// For each separator
+			if(!tabDone[k])							// If not already treated
+			{
+				nbUntilNode[k] += globalBuffer[i];
+				
+				// If the number of particles exceeds the max
+				if (nbUntilNode[k] >= targets[k])
+				{	
+					// Update the separators tab
+					sepNodes[k] = IDs[i];
+
+					// and mark the separator as treated
+					tabDone[k]=1;
+				}
+			}
+	
+	// Dealloc
+	delete [] tabDone;
+	//cout << "InitializeSeps : " << sepNodes[0] << " " << sepNodes[1] << " " << sepNodes[2] << endl;
+}
 
 
 template<typename T>
@@ -92,5 +136,46 @@ void LBMortonBase::computeMortonOneSep(Node<T> * n, const int * globalBuffer, co
 		}
 	}
 }
+
+template<typename T>
+void LBMortonBase::computeMortonOneSep2(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbChildren, 
+	const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const
+{	
+//	printf("---------> ENTERING FromComputeMortonOneSep2, at NODE : %ld, with nbUntilNode = %d, nbChildren = %d\n", n->getId(), nbUntilNode, nbChildren);
+
+	// restart
+	int sum = 0;
+	for (int i=0; i<nbChildren; i++)
+	{
+//		printf("---------> BUFFER, child n° %d contains : %d\n", i, globalBuffer[i]);
+		sum += globalBuffer[i];
+	}
+	nbUntilNode -= sum;
+	
+//	printf("---------> FromComputeMortonOneSep2, sum = %d, nbUntilNode = %d\n", sum, nbUntilNode);
+	
+	
+	// for each leave
+	for (int i=0; i<nbChildren; i++)
+	{
+		// increase the counter
+		nbUntilNode += globalBuffer[i];	
+//		printf("---------> Just added %d, nbUntilNode = %d\n", globalBuffer[i], nbUntilNode);
+		
+		// if the counter exceeds the max		
+		if (nbUntilNode >= target )
+		{	
+//			printf("---------> NOW EXCEEDS, new sep = %ld\n", IDs[i]);
+
+			// update localSep, counters and exit
+			//separator = n->computeId(divHeight, separator, i);
+			separator = IDs[i];
+			break;
+		}
+	}
+}
+
+
+
 
 #endif

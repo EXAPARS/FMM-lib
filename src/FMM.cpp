@@ -37,8 +37,7 @@ using namespace std;
 
 void FMM_load_balance(string file, int nbParticles, double dist, double tolerance, int LBStrategy)
 {
-	int size; 
-	MPI_Comm_size(MPI_COMM_WORLD,&size);
+	int size; MPI_Comm_size(MPI_COMM_WORLD,&size);
 	decompo nb1ers(size);
 	int first = 0;
 	int last = nbParticles-1;
@@ -62,32 +61,34 @@ void FMM_load_balance(string file, int nbParticles, double dist, double toleranc
 	
 	p.scale();
 	treeHead = new Node<Particles>(p);
-		
+	
+	// Node Owners array
+	i64 * nodeOwners = nullptr;
 	// Load Balancing
 	LB_Base * LBB = nullptr;
 	switch (LBStrategy)
 	{
 		case HIST_EXACT : 
 			cout <<"--> Exact Histograms" << endl;
-			LBB = new LoadBalancer<Particles, HistExact> (treeHead, nb1ers, dist, tolerance, first, last, gComm);
+			LBB = new LoadBalancer<Particles, HistExact> (treeHead, nb1ers, dist, tolerance, first, last, gComm, nodeOwners);
 			LBB->run();		
 			break;
 		
 		case HIST_APPROX :		
 			cout <<"--> Approx Histograms" << endl;			
-			LBB = new LoadBalancer<Particles, HistApprox> (treeHead, nb1ers, dist, tolerance, first, last, gComm);
+			LBB = new LoadBalancer<Particles, HistApprox> (treeHead, nb1ers, dist, tolerance, first, last, gComm, nodeOwners);
 			LBB->run();			
 			break;
 		
 		case MORTON_MPI_SYNC :
 			cout <<"--> Morton DFS, with tolerance : " << tolerance << endl;			
-			LBB = new LoadBalancer<Particles, MortonSyncMPI>(treeHead, nb1ers, dist, tolerance, first, last, gComm);
+			LBB = new LoadBalancer<Particles, MortonSyncMPI>(treeHead, nb1ers, dist, tolerance, first, last, gComm, nodeOwners);
 			LBB->run();
 			break;
 		
 		case MORTON_GASPI_ASYNC :			
 			cout <<"--> Morton DFS Async, with tolerance : " << tolerance << endl;
-			LBB = new LoadBalancer<Particles, MortonAsyncGASPI>(treeHead, nb1ers, dist, tolerance, first, last, gComm);
+			LBB = new LoadBalancer<Particles, MortonAsyncGASPI>(treeHead, nb1ers, dist, tolerance, first, last, gComm, nodeOwners);
 			LBB->run();			
 			break;
 		
