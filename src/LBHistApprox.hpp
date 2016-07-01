@@ -29,118 +29,22 @@ class HistApprox
 {
 public:
 	template <typename T>
-	void loadBalance(Node<T> * tree, const decompo & nb1ers, const double & dist, double tol,
+	void loadBalance(Node<T> * octree, const decompo & nb1ers, const double & dist, double tol,
 		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
 		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const 
 	{ 
-		cout << "--> Approx Histogram load balancing" << endl; 
-
-		// -- Temporarily call another function
-		int under_construction = 1;
-		if (under_construction == 1)
-		{
-			loadBalance2(tree, nb1ers, dist, tol, first, last, maxEdge, center, nodeCenters, nodeOwners, nbLeaves);
-		}
-		else // original function 
-		{
-
-			/**
-			 * Compute the octree characteristics
-			 **/	
-			// edge = square side, has to be the upper power of 2 : 2^log2(dist) upper rounded
-			// 31 = height of the octree if d = 1, since coordinates in [0 - 2^31]
-			// h = height of the octree if size of a leaf is c
-			// h = 31 - log2(c)= 31 - log2d;
-
-			ui32 log2d = ceil(log2(dist));
-			ui32 edge = (1 << log2d); 	//pow(2, log2d)	
-			ui32 height = 31 - log2d;	
-
-			/**
-			* Traverse the tree and recursively the leaves until reaching the targeted depth.
-			* The targeted depth corresponds to the size of the prime numbers decomposition list.
-			**/
-					
-			// BFS list
-			list <Node<T>*> bfsList;
-			bfsList.push_back(tree);
-			
-			// flatten Indexes initialization
-			int flatIdxSize = 2; 
-			int * flatIdxes = new int [flatIdxSize];
-			flatIdxes[0] = tree->getContent().getFirstIndex()-1;
-			flatIdxes[1] = tree->getContent().getLastIndex();
-
-			// traverse the the tree in BFS way
-			while(!bfsList.empty())
-			{
-				// update ptr
-				Node<T> * ptr = bfsList.front();
-				
-				// if it is a leaf and targeted depth is not reached -> recurse on the complete level
-				if ( (ptr->isLeaf()) && (static_cast<unsigned int>(ptr->getDepth()) < nb1ers._list.size() ) ) 
-				{			
-					// create neighboring vectors
-					vector< Node<T>* > levelNodes;
-					
-					// initialize neighboring vectors
-					for (auto it = bfsList.begin(); it != bfsList.end(); it++)
-						if ((*it)->getDepth() == ptr->getDepth())
-							levelNodes.push_back(*it);
-									
-					// call the load balance function, on a complete level, update an array of T
-					T ** p;
-					ptr->getContent().compSepHistApprox(ptr->getDepth(), nb1ers, levelNodes.size(), 
-						p, flatIdxes, flatIdxSize, edge, height); 
-
-					// create all the children nodes, for the complete level
-					int nbChilds = nb1ers._list[ptr->getDepth()];
-					int nbWorkers = levelNodes.size();
-					for (int i=0; i<nbWorkers; i++)
-						levelNodes[i]->setChildren(p[i], nbChilds);			
-					
-					// insert all the children nodes into the bfs list, for the complete level
-					for (int i=0; i<nbWorkers; i++)
-						for (int j=0; j<nbChilds; j++)
-							bfsList.push_back(levelNodes[i]->getChildren()[j]);
-							
-					// pop the current node
-					bfsList.pop_front(); 			
-				}
-				else
-					bfsList.pop_front();
-			}
-
-			/**
-			* Exchange the particles
-			**/
-			
-			// MPI Exchange
-			tree->getContent().exchangeMPI(flatIdxes);
-			
-			// Dealloc
-			delete [] flatIdxes;
-		}
-	}
-	
-	/// Under construction, Alternative version to branch with spectre
-	template <typename T>
-	void loadBalance2(Node<T> * tree, const decompo & nb1ers, const double & dist, double tol,
-		const int & first, const int & last, const double & maxEdge, const vec3D & center, double * nodeCenters, i64 * nodeOwners, int nbLeaves) const 
-	{ 
-		//cout << "--> Rerouted to 'Under Construction' " << endl; 
+		cout << "--> Approx Histogram load balancing" << endl;
 
 		/**
 		 * Compute the octree characteristics
 		 **/
 
-//FIXME : fix height !!!
-		ui32 height = 8;//tree->getHeight(); 3 for mini-sphere
-		cout << setprecision(9);
+		ui32 height = octree->getHeight();
+		
 		
 		// compute separators list
 		double edge = maxEdge / (1<<(height));
-		double coeff = tree->getCoeff();
+		double coeff = octree->getCoeff();
 		//cout << "--- LIBFMM --- edge : " << edge << endl;		
 
 /* TODO : clean after testing*/
@@ -194,26 +98,26 @@ public:
 		* The targeted depth corresponds to the size of the prime numbers decomposition list.
 		**/
 				
+		// KD Tree
+		Node<T> * kdTree = nullptr;
+		kdTree = new Node<T>();
+		kdTree->setAttributes(octree->getFirstIndex(), octree->getNbItems(), octree->getEdge(), octree->getOrigin());
+
 		// BFS list
 		list <Node<T>*> bfsList;
-		bfsList.push_back(tree);
+		bfsList.push_back(kdTree);
 		
 		// flatten Indexes initialization
-		//cout << "Allocate flatIdxes" << endl;
 		int flatIdxSize = 2; 
 		int * flatIdxes = new int [flatIdxSize];
-		
-//		cout << "flatIdxes has been allocated" << endl;
-//		cout << "complete flatidxes" << endl;
-		flatIdxes[0] = tree->getContent().getFirstIndex()-1;
-		flatIdxes[1] = tree->getContent().getLastIndex();
-/* TODO : On n'a peut-être plus besoin de flatIdxes, à voir + tard */		
+		flatIdxes[0] = kdTree->getContent().getFirstIndex()-1;
+		flatIdxes[1] = kdTree->getContent().getLastIndex();
 
-		//cout << "traverse the tree in BFS way" << endl;/*
+
 		// traverse the the tree in BFS way
 		while(!bfsList.empty())
 		{
-			// update ptr
+			// Get a pointer on the first node
 			Node<T> * ptr = bfsList.front();
 			
 			// if it is a leaf and targeted depth is not reached -> recurse on the complete level
@@ -233,19 +137,6 @@ public:
 				//ptr->getContent().compSepHistApprox(ptr->getDepth(), nb1ers, levelNodes.size(), p, flatIdxes, flatIdxSize, edge, height); 
 				ptr->getContent().compSepHistApprox2(ptr->getDepth(), nb1ers, levelNodes.size(), p, flatIdxes, flatIdxSize, edge, height, grid, nbGridAxis, nodeCenters, nodeOwners, nbLeaves); 
 
-				/*if (rank == 0)
-				{
-					cout << "********************************" << endl;
-					cout << "***** INTERMEDIATE RESULTS *****" << endl;
-					cout << "********************************" << endl;
-					for (int i=0; i<nbLeaves; i++)
-					{
-						cout <<"\t(" << i << ")" << nodeOwners[i];
-						if (i%10 == 0)
-							cout << endl;
-					}	
-				}*/
-
 				// create all the children nodes, for the complete level
 				int nbChilds = nb1ers._list[ptr->getDepth()];
 				int nbWorkers = levelNodes.size();
@@ -263,16 +154,6 @@ public:
 			else
 				bfsList.pop_front();
 		}
-
-		//cout << " ---------------------------- Sortie de load balance2" << endl;
-		/**
-		* Exchange the particles
-		**/
-
-		// MPI Exchange
-		//n->getContent().exchangeMPI(flatIdxes);
-		//n->getContent().exchangeMPI2(flatIdxes);
-		// Dealloc
 		delete [] flatIdxes;
 
 		// C to F +1 pour les ranks MPI au niveau des feuilles

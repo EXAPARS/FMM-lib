@@ -77,8 +77,13 @@ public:
 	Node<T> * goToTarget(const int64_t & id);
 	Node<T> * getFirstLeafDescendant();
 	Node<T> * getLastLeafDescendant();
+	int getFirstIndex() const { return getContent().getFirstIndex(); }
+	ui32 getEdge() const { return getContent().getEdge(); }
+	vec3D getOrigin() const { return getContent().getOrigin(); }
 	int getNbItems() {return getContent().getNbParticles(); }
 	void setChildren(T * content, const int & nbChilds);
+	void setContent(T * content) { _content = getContent(); }
+	void setAttributes(const int & index, const int & nbParticles,  const int & edge, const vec3D & o);
 	double getCoeff() const { return getContent().getCoeff(); }
 	double getTranslate() const { return getContent().getTranslate(); }
 
@@ -389,6 +394,12 @@ void Node<T>::setChildren(T * content, const int & nbChilds)
 		_children[i]->_id = (_id*8) + (i+1); 
 		_children[i]->_content = content[i];
 	}
+}
+
+template<typename T>
+void Node<T>::setAttributes(const int & index, const int & nbParticles,  const int & edge, const vec3D & o)
+{
+	getContent().setAttributes(index, nbParticles, edge, o);
 }
 
 /*----------------------------------------------------------------------

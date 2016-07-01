@@ -242,12 +242,8 @@ void copyAndScaleArray(double * vIN, double * vOUT, int nbCoords)
 
 
 /*TODO : le scaling est à améliorer */
-/*TODO : deallocate params */
 void Particles::initScalingParameters()
 {
-	//pour le moment : 1 translate et 1 coeff
-	//double * params = new double[2]();
-	
 	// compute scaling parameters
 	double min, max;
 	min = max = 0;	
@@ -266,32 +262,9 @@ void Particles::initScalingParameters()
 	MPI_Allreduce(&min, &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 	MPI_Allreduce(&max, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	
-	/** F7X **/
-	/** ATTENTION SCALING EN DUR CALCULE PAR RAPPORT A 1 MPI**/	
-/**	double min = -11578.99023;
-	double max = 21199.99609;
-**/
-	
-	/** DRONERA **/
-	//double min = -1436.6006;
-	//double max = 1913.9934;	
-	
-	/** SPHERE 3GHZ **/
-	/*double min = -100.0;
-	double max = 100.0;*/
-	//cout << "---------------- global_min " << global_min << endl;
-	//cout << "---------------- global_max " << global_max << endl;
-
-/*cout << setprecision(8);
-cout << min << endl;
-cout << max << endl;
-*/
 	double coeff = COORDMAX / (global_max - global_min) ;
 	double translate = global_min * -1.0;
 	
-	/*params[0] = coeff;
-	pa*rams[1] = translate;
-	return params;*/
 	_coeff = coeff;
 	_translate = translate;
 }

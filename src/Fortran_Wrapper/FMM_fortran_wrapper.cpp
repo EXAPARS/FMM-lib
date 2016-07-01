@@ -118,9 +118,10 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	p.scale();
 	
 	// creatre Octree
-	Node<Particles> * treeHead = nullptr;
-	treeHead = new Node<Particles>(p);
-
+	Node<Particles> * octree = nullptr;
+	octree = new Node<Particles>(p);
+	octree -> read_octree(nbElemPerNode, firstElemAdress, nbSonsPerNode, firstSonId, nodeCenters);
+	
 	// Octree useful characteristics
 	int height = (*nbLevels) - 1;
 	int nbLeaves = endlev[height] - endlev[height-1];
@@ -140,9 +141,7 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	{
 		case MORTON_MPI_SYNC : 
 			cout << "Load Balancing with Morton Space Filling Curve" << endl;
-
-			treeHead -> read_octree(nbElemPerNode, firstElemAdress, nbSonsPerNode, firstSonId, nodeCenters);
-			LBB = new LoadBalancer<Particles, MortonSyncMPI>(treeHead, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
+			LBB = new LoadBalancer<Particles, MortonSyncMPI>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
 			break;
 			
 		case HIST_APPROX :
@@ -152,7 +151,7 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 			copyAndScaleArray(nodeCenters, centers, nbNodes);
 			
 			// Apply Histogram Load Balancing
-			LBB = new LoadBalancer<Particles, HistApprox>(treeHead, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
+			LBB = new LoadBalancer<Particles, HistApprox>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
 			break;
 			
 		default :
