@@ -23,7 +23,18 @@
 
 extern "C"
 {
-	void fmm_load_balance_(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwners, double * centers, i64 * endlev, i64 * nbLevels);
+	void fmm_load_balance_(	i64 * nbElemPerNode, 
+	i64 * firstElemAdress, 
+	i64 * nbSonsPerNode, 
+	i64 * firstSonId, 
+	i64 * nodeOwners, 
+	double * nodeCenters, 
+	i64 * endlev, 
+	i64 * nbLevels,
+	double * maxEdge, 
+	int * LBstrategy);
+	
+	void fmm_get_elem_coors_ (int * elemToNode, i64 * nbElem, double * nodesXcoords, double * nodesYcoords, double * nodesZcoords);
 }
 
 #endif

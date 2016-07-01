@@ -29,7 +29,8 @@ class HistExact
 public:
 	template <typename T>
 	void loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, double tol,
-		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const 
+		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
+		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const 
 	{ 
 		cout << "--> Exact Histogram load balancing" << endl; 
 

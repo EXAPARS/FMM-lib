@@ -79,13 +79,17 @@ public:
 	Node<T> * getLastLeafDescendant();
 	int getNbItems() {return getContent().getNbParticles(); }
 	void setChildren(T * content, const int & nbChilds);
+	double getCoeff() const { return getContent().getCoeff(); }
+	double getTranslate() const { return getContent().getTranslate(); }
+
 
 	// tree functions
 	int64_t computeId(const int & height, const int64_t & root, const int & LeafIndex);
 	int64_t getAncesterAtLevel(const int & level);
 	bool isLeaf(){ return (_nbChildren <= 0); } // spectre = -1 => LEAF
 	int countLeaves();
-	
+	ui32 getHeight(); 
+
 	// recursive Octree Division
 	void divideOctree();
 	void divideOctreeNTimes(const int & nTimes);
@@ -200,7 +204,7 @@ void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSo
 	if (nbChildren > 0)
 	{
 		i64 fSonID = firstSonId[nodeID]-1; // Fortran array indices start with 1 instead of 0
-		/**cout << "READING Fortran Octree nodeID : " << nodeID << ", nbChildren : " << nbChildren << ",fson : " << fSonID << ", nbElements : " << getContent().getNbParticles()  
+			/**cout << "READING Fortran Octree nodeID : " << nodeID << ", nbChildren : " << nbChildren << ",fson : " << fSonID << ", nbElements : " << getContent().getNbParticles()  
 			 << ", level : " << _depth << endl;**/
 		
 		// allocate the children nodes, update them and recursive call
@@ -215,7 +219,19 @@ void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSo
 			_children[i]->_id = (fSonID + i);
 			
 			// Content update
-			pTab[i].setAttributes( 0 , nbElemPerNode[(fSonID+i)], 0, vec3D(centers[(fSonID*3)],centers[(fSonID*3)+1],centers[(fSonID*3)+2]) ); /*0, 0, 0*/
+			
+			// if it is a Leaf, we have _first and _last indexes
+			int first = -1;
+			if (nbSonsPerNode[_children[i]->_id]<= 0) // this child is a leaf
+			{
+				first = firstElemAdress[fSonID+i]-1; // From F to C
+			}
+			
+			pTab[i].setAttributes ( first, 							/*index (_first)*/
+									nbElemPerNode[(fSonID+i)],  /*nbparticles*/
+									0, 							/*edge*/
+									vec3D(centers[(fSonID*3)], centers[(fSonID*3)+1], centers[(fSonID*3)+2]) /*origin*/
+								   ); 
 			_children[i]->_content = pTab[i];
 			
 			// recursive call
@@ -226,7 +242,7 @@ void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSo
 	}
 	else
 	{
-		/**cout << "READING Fortran Octree nodeID : " << nodeID << ", this node is a LEAF" <<", containing : " << getContent().getNbParticles() << ", level : " << _depth << endl; **/
+		//cout << "LEAF nodeID : " << nodeID << ", containing : " << getContent().getNbParticles() << ", first : " << getContent().getFirstIndex() << ", last : " << getContent().getLastIndex() << endl;
 	}
 }
 /*----------------------------------------------------------------------
@@ -420,6 +436,35 @@ int64_t Node<T>::getAncesterAtLevel(const int & level)
 	
 	return ancester;
 }
+
+template <typename T> 
+ui32 Node<T>::getHeight()
+{
+	stack<Node<T>*> st;
+	Node<T> * tmp = nullptr;
+
+	int maxDepth = 0;
+	st.push(this);
+	
+	while (!st.empty())
+	{
+		// pop a node
+		tmp = st.top();
+		st.pop();
+		if (tmp->_depth > maxDepth)
+		{
+			maxDepth = tmp->_depth;
+		}
+		// push the children into the stack
+		else
+		{
+			for (int i=0; i<tmp->getNbChildren(); i++)
+				st.push(tmp->getChildren()[i]);
+		}
+	}
+	return maxDepth;
+}
+
 
 /*----------------------------------------------------------------------
 							OCTREE

@@ -29,7 +29,8 @@ class MortonSyncMPI : public LBMortonBase
 public:
 	template <typename T>
 	void loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, double tolerance, 
-		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const;
+		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
+		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const;
 	
 	template <typename T>
 	void loadBalance2(Node<T> * n, const decompo & nb1ers, const double & dist, double tolerance, 
@@ -72,7 +73,8 @@ public:
 
 template <typename T>
 void MortonSyncMPI::loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, double tolerance, 
-		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const
+		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
+		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const
 { 
 	// TEMPORARILY call lb2 for Fortran octree
 	

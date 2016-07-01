@@ -35,6 +35,8 @@ class Particles
 {
 public:
 	static vec3D * _coordinates;
+	static double _coeff;
+	static double _translate;
 
 protected:
 	int _first;
@@ -67,6 +69,8 @@ public:
 		double * coordsD = reinterpret_cast<double*>(coordinates);
 		return coordsD;
 	}
+	double getCoeff() const {return _coeff;}
+	double getTranslate() const {return _translate; }
 
 	// setters
 	void loadCoordinates(const int & nbParticles, const string & file);		
@@ -76,7 +80,9 @@ public:
 	void loadCoordinatesASCII(const int & nbParticles, const string & file, Gaspi_communicator * gComm);
 	void loadCoordinatesASCIIWithoutQuantity(const string & file);
 		
+	void initScalingParameters();
 	void scale();
+	
 	
 	void setAttributes(const int & index, const int & nbParticles, const int & edge, const vec3D & o);
 	void setAttrBounds(const int & firstIndex, const int & lastIndex);
@@ -121,6 +127,11 @@ public:
 	void compSepExpExact(int & sumNbItems, const char & histType, const int & dim, 
 		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
 		const int & nbWorkers, int *flatIdxes);		
+
+	void compSepExpExact2(int & sumNbItems, const char & histType, const int & dim, 
+		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
+		const int & nbWorkers, int *flatIdxes);	
+
 	void compSepMantExact(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
 		ui64 ** separators, const int & nbWorkers, int *flatIdxes);
@@ -129,9 +140,18 @@ public:
 	void compSepHistApprox(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 		const ui32 edge, const ui32 height);
+		
+	void compSepHistApprox2(const int & depth, const decompo & decomp,
+		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
+		const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves);
+		
 	void compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
 		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h);
+
+	void compSepMantApprox2(const int & sumNbItems, const char & histType, const int & dim, 
+		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
+		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis);
 
 	/// Swaps
 	void swap(const int & dim, const int & nbSeps, ui64 ** separators, const int & nbWorkers, 
@@ -165,5 +185,14 @@ void fillParticles(Particles **& p, int nbWorkers, int nbParts, int * flatIdxes)
 		 
 // Adjust Separators on Octree grid
 void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k);
-			
+void adjustOnGrid2(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis);
+
+// Scale any array of coordinates
+void scale(vec3D & coords);
+void scaleArray(double * coords, int nbcoords);
+void copyAndScaleArray(double * vIN, double * vOUT, int nbCoords);
+vec3D scaleBack(vec3D &coords);
+double scaleBackDB(double coord);
+
+
 #endif

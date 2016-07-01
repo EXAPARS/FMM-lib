@@ -29,7 +29,8 @@ class MortonAsyncGASPI : public LBMortonBase
 public:
 	template <typename T>
 	void loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, double tolerance, 
-		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const;	
+		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
+		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const;	
 	
 	template<typename T>
 	void WaitForInitBuffers(Node<T> * n, const int & nbLeaves, int *& globalBuffer, 
@@ -122,7 +123,8 @@ public:
 
 template <typename T>
 void MortonAsyncGASPI::loadBalance(Node<T> * n, const decompo & nb1ers, const double & dist, 
-	double tolerance, const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const
+	double tolerance, const int & first, const int & last, const double & maxEdge, const vec3D & center, 
+	Gaspi_communicator & gComm, double * nodeCenters, i64 * nodeOwners, int nbTreeLeaves) const
 { 
 	// MPI Barrier
 	MPI_Barrier(MPI_COMM_WORLD);	

@@ -201,6 +201,8 @@ void dfs_dump_centers(string prefix, i64 * nbSonsPerNode, i64 * firstSonId, i64 
 		i64 nbSons = nbSonsPerNode[nodeID];
 		i64 firstSonID = firstSonId[nodeID]-1;
 
+		out << "nbSons = " << nbSons << endl;
+		
 		// for each son, write and call
 		i64 sonID;
 		for (int i=0; i<nbSons; i++)
