@@ -89,7 +89,8 @@ void fmm_get_elem_coors_ (int * elemToNode, i64 * nbElem, double * nodesXcoords,
 /**
 * This function 
 * @param * nbElemPerNode : Array of number of elements, per octree node
-* @param * firstElemAdress : /!\ adresse du 1er element de chaque cellule dans le tableau tab
+* @param * firstElemAdress : Array of Indexes. 
+* 							 Gives the index(address) first element's data in the Id's array fmmData%elem, per octree node.
 * @param * nbSonsPerNode : Array of number of sons, per octree node
 * @param * firstSonId : Array of number of first son Id, per octree node
 * @param * nodeOwners : Array of responsible mpi ranks, per octree node. (From 1 to nbRanks, Fortran's style)
@@ -99,49 +100,39 @@ void fmm_get_elem_coors_ (int * elemToNode, i64 * nbElem, double * nodesXcoords,
 * @param * maxEdge : Edge of the first octree node. (the biggest)
 * @param *LBstrategy : integer used to choose the load balancing strategy
 */
-void fmm_load_balance_(
-	i64 * nbElemPerNode, 
-	i64 * firstElemAdress, 
-	i64 * nbSonsPerNode, 
-	i64 * firstSonId, 
-	i64 * nodeOwners, 
-	double * nodeCenters, 
-	i64 * endlev, 
-	i64 * nbLevels,
-	double * maxEdge, 
-	int * LBstrategy)
+void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nodeOwners, double * nodeCenters, i64 * endlev, 
+	i64 * nbLevels, double * maxEdge, int * LBstrategy)
 {
-	// création de l'arbre et lecture des particules
-	Node<Particles> * treeHead = nullptr;
-	Particles p;
-	p.setAttributes(0,nbElemPerNode[0],*maxEdge, vec3D(nodeCenters[0] << " " << nodeCenters[1] << " " << nodeCenters[2]));
-	
-	treeHead = new Node<Particles>(p);
+
+	// MPI parameters
+	int size; MPI_Comm_size(MPI_COMM_WORLD, &size);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+	// create Particles
+	vec3D center(nodeCenters[0], nodeCenters[1], nodeCenters[2]);
+	scale(center);
+	Particles p; 
+	p.setAttributes(0,nbElemPerNode[0],*maxEdge, center); 
 	int nbElements = nbElemPerNode[0];
 	p.setNewCoordinates(elements, nbElements);
 	p.scale();
 	
+	// creatre Octree
+	Node<Particles> * treeHead = nullptr;
+	treeHead = new Node<Particles>(p);
+
+	// Octree useful characteristics
 	int height = (*nbLevels) - 1;
 	int nbLeaves = endlev[height] - endlev[height-1];
-	int firstLeave = endlev[height-1]; // endlev[height-1] +1(next) -1(F to C) 
+	int firstLeave = endlev[height-1]; // endlev[height-1] +1(next node) -1(F to C) 
+	int firstElem = 0;
+	int lastElem = nbElemPerNode[0]-1;
+	int nbNodes = endlev[height]*3;
+	double * centers = new double[nbNodes];
 	
-	// Apply Morton Load Balancing
-	int size; MPI_Comm_size(MPI_COMM_WORLD, &size);
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	// Load Balancing useful parameters
 	decompo nb1ers(size);
-	int first = 0;
-	int last = nbElemPerNode[0]-1;
-	vec3D center(*Xc, *Yc, *Zc);
-
-	// scale the center too
-	scale(center);
 	
-	int nbNodes2 = endlev[height]*3;
-	double * centers = new double[nbNodes2];
-	copyAndScaleArray(nodeCenters, centers, nbNodes2);
-	
-	//scaleArray(nodeCenters, endlev[height]*3);
-
 	// Load Balance
 	LB_Base * LBB = nullptr;
 	cout << *LBstrategy << endl;
@@ -149,13 +140,21 @@ void fmm_load_balance_(
 	{
 		case MORTON_MPI_SYNC : 
 			cout << "Load Balancing with Morton Space Filling Curve" << endl;
+
 			treeHead -> read_octree(nbElemPerNode, firstElemAdress, nbSonsPerNode, firstSonId, nodeCenters);
-			LBB = new LoadBalancer<Particles, MortonSyncMPI>(treeHead, nb1ers, 0, 0, first, last, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
+			LBB = new LoadBalancer<Particles, MortonSyncMPI>(treeHead, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
 			break;
+			
 		case HIST_APPROX :
 			cout << "Load Balancing with Histograms, maxEdge = " << *maxEdge << endl;
-			LBB = new LoadBalancer<Particles, HistApprox>(treeHead, nb1ers, 0, 0, first, last, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
+			
+			// Get a copy of the octree centers and scale them
+			copyAndScaleArray(nodeCenters, centers, nbNodes);
+			
+			// Apply Histogram Load Balancing
+			LBB = new LoadBalancer<Particles, HistApprox>(treeHead, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
 			break;
+			
 		default :
 			cerr << "No identified Load Balancing strategy" << endl;
 			exit(0);
