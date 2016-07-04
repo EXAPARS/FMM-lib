@@ -910,91 +910,41 @@ void Particles::compSepMantExact(const int & sumNbItems, const char & histType, 
 				APPROXIMATED HISTOGRAMS ON OCTREE GRID
 ----------------------------------------------------------------------*/
 
-/*
-void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
-	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
-	const ui32 edge, const ui32 height)
-{	
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	// get parts, seps, dim and workers
-	int nbParts = decomp._list[depth]; 	 				 
-	int nbSeps = nbParts-1;
- 	int dim = depth % 3;
-
-	// initialize arrays : counters, separators values and indexes						 		
-	int * nbUnderSep = new int [nbSeps](); 
-	
-	ui64 ** separators = new ui64* [nbWorkers];	
-	for(int i=0; i<nbWorkers; i++)
-		separators[i] = new ui64[nbSeps+1](); // +1 is an ui64 to tag finished values.
-
-	int ** SepIdx = new int* [nbWorkers];	
-	for(int i=0; i<nbWorkers; i++)
-		SepIdx[i] = new int[nbSeps]();	
-	
-	// sign + exponent 
- 	int sumNbItems = 0;	
-	compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);	
-						
-	// 16 , 16, 16, 4 bits of mantissa
-	compSepMantApprox(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);	
-	compSepMantApprox(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);
-	compSepMantApprox(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);	
-	compSepMantApprox(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);
-
-	// swap		
-	swap(dim, nbSeps, separators, nbWorkers, flatIdxes, SepIdx);				
-
- 	// Update flatten Indexes and size
-	updateFlatten(flatIdxes, flatIdxSize, nbWorkers, nbSeps, SepIdx);
-
-	// fill the array of particles
-	fillParticles(p, nbWorkers, nbParts, flatIdxes);
-
-	// dealloc
-	delete [] nbUnderSep;
-	for(int i=0; i<nbWorkers; i++)
-	{
-		delete [] separators[i];
-		delete [] SepIdx[i];
-	}
-	delete [] separators;
-	delete [] SepIdx;
-}*/
-
 /** TODO : Update this DOCUMENTATION, === OUTDATED ===
-* This method computes approximated separators. 
-* The separators are modified in order to stick to the octree grid.
-* The tree height is computed in order to know the separators coordinates.
+* This method computes approximated separators on the octree grid. 
 * @param depth : Current depth.
 * @param decomp : Prime numbers decomposition list.
-* @param level : Complete level of nodes on the current depth
+* @param nbWorkers : Number of active MPI ranks, computing the new separators.
 * @param p : Array of particles, which will be used to update the children nodes
 * @param flatIdxes is an array of separators, which will be updated with the last recursion.
 * @param flatIdxSize is the size of the flatIdxes array of separators
+* @param edge : Edge of the first octree node. (the biggest)
+* @param height : Octree height
+* @param grid : grid of octree existing separators. (dim x 2^height -1)
+* @param nbGridAxis : 2^height -1
+* @param nodeCenters : Array containing the center x, y and z coordinates of each leaf, per octree leaf 
+* @param nodeOwners : Array containing the pid of each cell's owner, per leaf 
+* @param nbLeaves : Number of leaves (nodes/cells) at the last bottom level of the octree 
 **/
-void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
+void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 	const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves)
 {	
-
 	// get parts, seps, dim and workers
-	int nbParts = decomp._list[depth]; 	 				 
+	int nbParts = decomp._list[depth];
 	int nbSeps = nbParts-1;
  	int dim = depth % 3;
 
-	// initialize arrays : counters, separators values and indexes						 		
+	// initialize arrays : counters, separators values and indexes
 	int * nbUnderSep = new int [nbSeps](); 
 	
 	ui64 ** separators = new ui64* [nbWorkers];	
 	for(int i=0; i<nbWorkers; i++)
 		separators[i] = new ui64[nbSeps+1](); // +1 is an ui64 to tag finished values.
 
-	int ** SepIdx = new int* [nbWorkers];	
+	int ** SepIdx = new int* [nbWorkers];
 	for(int i=0; i<nbWorkers; i++)
-		SepIdx[i] = new int[nbSeps]();	
+		SepIdx[i] = new int[nbSeps]();
 	
 	// sign + exponent 
  	int sumNbItems = 0;	
@@ -1017,7 +967,7 @@ void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
 
 	// fill the array of particles
 	fillParticles(p, nbWorkers, nbParts, flatIdxes);
-	
+
 	// dealloc
 	delete [] nbUnderSep;
 	for(int i=0; i<nbWorkers; i++)
@@ -1029,8 +979,9 @@ void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
 	delete [] SepIdx;
 }
 
-
 /** 
+* This method updates *nodeOwners*, the array of octree leaves owners.
+* The new owner is computed with the knowledge of the last owner and the new part in which the leave goes.
 * @param nodeOwners : Array containing the pid of each cell's owner, per leaf
 * @param nbLeaves : Number of leaves (nodes/cells) at the last bottom level of the octree
 * @param dim : Dimension on which the separators are computed

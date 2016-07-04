@@ -103,8 +103,7 @@ public:
 					}			
 				// call the load balance function, on a complete level, update an array of T
 				T ** p;
-				//ptr->getContent().compSepHistApprox(ptr->getDepth(), nb1ers, levelNodes.size(), p, flatIdxes, flatIdxSize, edge, height); 
-				ptr->getContent().compSepHistApprox2(ptr->getDepth(), nb1ers, levelNodes.size(), p, flatIdxes, flatIdxSize, edge, height, grid, nbGridAxis, nodeCenters, nodeOwners, nbLeaves); 
+				ptr->getContent().compSepHistApprox(ptr->getDepth(), nb1ers, levelNodes.size(), p, flatIdxes, flatIdxSize, edge, height, grid, nbGridAxis, nodeCenters, nodeOwners, nbLeaves); 
 
 				// create all the children nodes, for the complete level
 				int nbChilds = nb1ers._list[ptr->getDepth()];
