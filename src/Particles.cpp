@@ -910,18 +910,7 @@ void Particles::compSepMantExact(const int & sumNbItems, const char & histType, 
 				APPROXIMATED HISTOGRAMS ON OCTREE GRID
 ----------------------------------------------------------------------*/
 
-/**
-* This method computes approximated separators. 
-* The separators are modified in order to stick to the octree grid.
-* The tree height is computed in order to know the separators coordinates.
-* @param depth : Current depth.
-* @param decomp : Prime numbers decomposition list.
-* @param level : Complete level of nodes on the current depth
-* @param p : Array of particles, which will be used to update the children nodes
-* @param flatIdxes is an array of separators, which will be updated with the last recursion.
-* @param flatIdxSize is the size of the flatIdxes array of separators
-
-**/
+/*
 void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 	const ui32 edge, const ui32 height)
@@ -973,16 +962,23 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	}
 	delete [] separators;
 	delete [] SepIdx;
-}
+}*/
 
-/**
-* TODO : document
+/** TODO : Update this DOCUMENTATION, === OUTDATED ===
+* This method computes approximated separators. 
+* The separators are modified in order to stick to the octree grid.
+* The tree height is computed in order to know the separators coordinates.
+* @param depth : Current depth.
+* @param decomp : Prime numbers decomposition list.
+* @param level : Complete level of nodes on the current depth
+* @param p : Array of particles, which will be used to update the children nodes
+* @param flatIdxes is an array of separators, which will be updated with the last recursion.
+* @param flatIdxSize is the size of the flatIdxes array of separators
 **/
 void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 	const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves)
 {	
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	// get parts, seps, dim and workers
 	int nbParts = decomp._list[depth]; 	 				 
@@ -1002,68 +998,18 @@ void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
 	
 	// sign + exponent 
  	int sumNbItems = 0;	
-	//compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
 	compSepExpExact2(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
-	//cout << "After compSepExact2" << endl;
 	
-	/*if (rank == 0)
-	for (int k=0; k<nbWorkers; k++)
-		for (int i=0; i<nbSeps; i++)
-			cout << "separator : " << separators[k][i] << " " <<  *((double *)&(separators[k][i])) << " " << scaleBackDB(*((double *)&(separators[k][i]))) << endl;*/
-
 	// 16 , 16, 16, 4 bits of mantissa
-	//compSepMantApprox(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);	
 	compSepMantApprox2(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
 	compSepMantApprox2(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
 	compSepMantApprox2(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
 	compSepMantApprox2(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
 	
-	/*if (rank == 0)
-	for (int k=0; k<nbWorkers; k++)
-		for (int i=0; i<nbSeps; i++)
-			cout << "separator : " << separators[k][i] << " " << *((double *)&(separators[k][i])) << endl;*/
-
-//---------------------------------------------------------------------------
-//------------------ END COMPLETING TREE INFORMATIONS -----------------------
-//---------------------------------------------------------------------------
-	//cout << " ---------- COMPLETE TREE INFORMATIONS ------------ " << endl;
-	for (int i=0; i<nbLeaves; i++)
-	{
-		int tmpSepIdx = 0;
-		bool found = false;
-		
-		while ( !found && (tmpSepIdx < nbSeps))
-		{
-			double coord = nodeCenters[(3*i) + dim];
-			int currentOwner = nodeOwners[i];
-			double tmpSep = *((double *)&(separators[currentOwner][tmpSepIdx]));
-			
-			if (coord > tmpSep)
-			{
-				tmpSepIdx++;
-			}
-			else
-			{
-				found = true;
-				nodeOwners[i] = nodeOwners[i]*(nbParts) + tmpSepIdx; 
-			}
-		}
-		if (!found && (tmpSepIdx == nbSeps)) // last part
-		{
-			nodeOwners[i] = nodeOwners[i]*(nbParts) + nbSeps;
-		}
-		else if (!found && (tmpSepIdx != nbSeps))
-		{
-			cout << "found = " << found << ", tmpSepIdx = " << tmpSepIdx << ", nbSeps = " << nbSeps << endl;
-			cerr << "[nodeOwners Computation] - Unexpected Case !";
-			exit(456);
-		}
-	}
-//---------------------------------------------------------------------------
-//------------------ END COMPLETING TREE INFORMATIONS -----------------------
-//---------------------------------------------------------------------------
+	// Update the array of cell owners according to the newly computed separators
+	updateBoxOwners(nodeOwners, nbLeaves, dim, nodeCenters, separators, nbParts);
 	
-	// swap	
+	// swap the particles around the computed separators
 	swap(dim, nbSeps, separators, nbWorkers, flatIdxes, SepIdx);
 
  	// Update flatten Indexes and size
@@ -1083,6 +1029,60 @@ void Particles::compSepHistApprox2(const int & depth, const decompo & decomp,
 	delete [] SepIdx;
 }
 
+
+/** 
+* @param nodeOwners : Array containing the pid of each cell's owner, per leaf
+* @param nbLeaves : Number of leaves (nodes/cells) at the last bottom level of the octree
+* @param dim : Dimension on which the separators are computed
+* @param nodeCenters : Array containing the center x, y and z coordinates of each leaf, per octree leaf
+* @param separators  : is an array of recently computed separators
+* @param nbParts : number of targeted parts
+**/
+void Particles::updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts)
+{
+	int nbSeps = nbParts - 1;
+	
+	// for each leave
+	for (int i=0; i<nbLeaves; i++)
+	{
+		int tmpSepIdx = 0;
+		bool found = false;
+		while ( !found && (tmpSepIdx < nbSeps) )
+		{
+			// get leaf center coordinates on axis dim
+			double coord = nodeCenters[(3*i) + dim];
+			
+			// get current leaf owner
+			int currentOwner = nodeOwners[i];
+			
+			// get current owner's first separator
+			double tmpSep = *((double *)&(separators[currentOwner][tmpSepIdx]));
+			
+			// if the coordinate is greaye than the separator, go to the next separator
+			if (coord > tmpSep)
+			{
+				tmpSepIdx++;
+			}
+			else // if not, we have found the right part and we can compute the new owner
+			{
+				found = true;
+				nodeOwners[i] = nodeOwners[i]*(nbParts) + tmpSepIdx; 
+			}
+		}
+		
+		// if all separators have been tested and the part has not been found, the cell goes into the last part
+		if (!found && (tmpSepIdx == nbSeps))
+		{
+			nodeOwners[i] = nodeOwners[i]*(nbParts) + nbSeps;
+		}
+		else if (!found && (tmpSepIdx != nbSeps)) // error
+		{
+			cout << "found = " << found << ", tmpSepIdx = " << tmpSepIdx << ", nbSeps = " << nbSeps << endl;
+			cerr << "[nodeOwners Computation] - Unexpected Case !";
+			exit(-1);
+		}
+	}
+}
 
 
 /**
@@ -1227,8 +1227,6 @@ void Particles::swapInterval(const int & first, const int & last, const int & di
 {	
 	int size; MPI_Comm_size(MPI_COMM_WORLD,&size);
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-	//if (rank == 0)
-	//cout << "[" << rank << "] ---SWAPPING--- from " << first << " to " << last << " on dim : " << dim << endl;
 	
 	// Convert separators array from ui64 to double
 	double * seps = new double[nbSeps];
@@ -1252,18 +1250,6 @@ void Particles::swapInterval(const int & first, const int & last, const int & di
 	sepIdx[0] = first + counters[0] - 1;
 	for (int i=1; i<nbSeps; i++)
 		sepIdx[i] = sepIdx[i-1] + counters[i];
-	
-	/**if (rank == 0)
-	{
-		cout << "In swap Interval, counters of particles contain : " << endl;
-		int sum = 0;
-		for (int i=0; i< (nbCounters-1); i++)
-		{
-			cout << "part " << i << " contains : " << counters[i] << " particles." << endl;
-			sum += counters[i];
-		}
-		cout << "part " << nbCounters-1 << " contains : " << last - first - sum + 1 << " particles." << endl;
-	}**/
 
 	// Reset counters
 	for (int i=0; i<nbCounters; i++)

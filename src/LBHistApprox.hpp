@@ -38,27 +38,19 @@ public:
 		/**
 		 * Compute the octree characteristics
 		 **/
-
-		ui32 height = octree->getHeight();
-		
 		
 		// compute separators list
-		double edge = maxEdge / (1<<(height));
+		ui32 height = octree->getHeight();
 		double coeff = octree->getCoeff();
-		//cout << "--- LIBFMM --- edge : " << edge << endl;		
-
-/* TODO : clean after testing*/
+		double edge = maxEdge / (1<<(height));
 		edge *= coeff;
-		//cout << "--- LIBFMM --- new edge with coeff : " << edge << endl;		
-		int nbGridAxis = (1 << height) - 1;		
-		int firstAxisIdx = nbGridAxis/2*-1;
+		int nbGridAxis = (1 << height) - 1;
+		int firstAxisIdx = nbGridAxis/2*(-1);
 
-		// in 3D, X, Y and Z
+		// Allocate and init the grid of octree separators, in 3D, X, Y and Z
 		double ** grid = new double* [3]();
 		for(int i=0; i<3; i++)
 			grid[i] = new double[nbGridAxis]();
-		
-		// complete grid array
 		for (int i=0; i<3; i++)
 		{
 			int index = firstAxisIdx;
@@ -69,29 +61,6 @@ public:
 			}
 		}
 
-		//affichage de debug
-		int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-		//if (rank == 0)
-		//if (tree->getDepth()==0)
-		/**for (int i=0; i<3; i++)
-		{
-			int index = 0;
-			if (i==0)
-				cout << "X axis" << endl;
-			else if (i ==1)
-				cout << "Y axis" << endl;
-			else if (i==2)
-				cout << "Z axis" << endl;
-			else
-				cout << "Unexpected axis" << endl;			
-
-			for (int j=0; j<nbGridAxis; j++)
-			{
-				cout << grid[i][j] << " " << scaleBackDB(grid[i][j]) << endl;
-				index++;
-			}
-		}**/
 		
 		/**
 		* Traverse the tree and recursively the leaves until reaching the targeted depth.

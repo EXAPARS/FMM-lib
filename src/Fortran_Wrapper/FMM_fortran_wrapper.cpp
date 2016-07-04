@@ -94,6 +94,7 @@ void fmm_get_elem_coors_ (int * elemToNode, i64 * nbElem, double * nodesXcoords,
 * @param * nbSonsPerNode : Array of number of sons, per octree node
 * @param * firstSonId : Array of number of first son Id, per octree node
 * @param * nodeOwners : Array of responsible mpi ranks, per octree node. (From 1 to nbRanks, Fortran's style)
+* 						The Result of the load balancing is read here.
 * @param * nodeCenters : Array of octree node centers
 * @param * endlev : Array of last octree node id, per octree level
 * @param * nbLevels : Number of Octree levels
@@ -140,20 +141,13 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	switch (*LBstrategy)
 	{
 		case MORTON_MPI_SYNC : 
-			cout << "Load Balancing with Morton Space Filling Curve" << endl;
 			LBB = new LoadBalancer<Particles, MortonSyncMPI>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
 			break;
-			
 		case HIST_APPROX :
-			cout << "Load Balancing with Histograms, maxEdge = " << *maxEdge << endl;
-			
-			// Get a copy of the octree centers and scale them
+			// Get a copy of the octree centers, scale them and apply load balancing strategy
 			copyAndScaleArray(nodeCenters, centers, nbNodes);
-			
-			// Apply Histogram Load Balancing
 			LBB = new LoadBalancer<Particles, HistApprox>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
 			break;
-			
 		default :
 			cerr << "No identified Load Balancing strategy" << endl;
 			exit(0);
