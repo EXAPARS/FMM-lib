@@ -120,14 +120,14 @@ public:
 	void dispatchOctree(int * quantities, int * destinations);
 	void swapOctree(int * qty, int * tabDest);
 	
-	// Load Balancing	
+	/** Load Balancing	**/
+	
 	/// Exact Histograms
 	void compSepHistExact(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize);		
 	void compSepExpExact(int & sumNbItems, const char & histType, const int & dim, 
 		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
 		const int & nbWorkers, int *flatIdxes);	
-
 	void compSepMantExact(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
 		ui64 ** separators, const int & nbWorkers, int *flatIdxes);
@@ -136,16 +136,10 @@ public:
 	void compSepHistApprox(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 		const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves);
-
-	void updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts);
-
 	void compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h);
-
-	void compSepMantApprox2(const int & sumNbItems, const char & histType, const int & dim, 
-		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis);
+		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis);		
+	void updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts);
 
 	/// Swaps
 	void swap(const int & dim, const int & nbSeps, ui64 ** separators, const int & nbWorkers, 

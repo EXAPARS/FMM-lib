@@ -857,11 +857,11 @@ void Particles::compSepMantExact(const int & sumNbItems, const char & histType, 
 }
 
 
-/*----------------------------------------------------------------------
-				APPROXIMATED HISTOGRAMS ON OCTREE GRID
-----------------------------------------------------------------------*/
+			/*----------------------------------------------------------------------|
+			|			APPROXIMATED HISTOGRAMS ON OCTREE GRID						|
+			|----------------------------------------------------------------------*/
 
-/** TODO : Update this DOCUMENTATION, === OUTDATED ===
+/** 
 * This method computes approximated separators on the octree grid. 
 * @param depth : Current depth.
 * @param decomp : Prime numbers decomposition list.
@@ -902,10 +902,10 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
 	
 	// 16 , 16, 16, 4 bits of mantissa
-	compSepMantApprox2(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
-	compSepMantApprox2(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
-	compSepMantApprox2(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
-	compSepMantApprox2(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
+	compSepMantApprox(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
+	compSepMantApprox(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
+	compSepMantApprox(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
+	compSepMantApprox(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
 	
 	// Update the array of cell owners according to the newly computed separators
 	updateBoxOwners(nodeOwners, nbLeaves, dim, nodeCenters, separators, nbParts);
@@ -928,6 +928,74 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	}
 	delete [] separators;
 	delete [] SepIdx;
+}
+
+/**
+* This method computes chunkSize bits of mantissa separators and tests if an octree separator can be identified.
+* If yes : the separator is updated and tagged. If not, the computation will continue with the next bits.
+* The Separators array is updated and broadcasted. 
+* @param sumNbItems : Sum of particles on all processes in the current part to process.
+* @param histType : Exponent or Mantissa, parameter for the histogram computation.
+* @param dim : 1, 2 or 3 for the coordinate dimension selection.
+* @param prefixSize : Already computed bits.
+* @param chunkSize : Number of bits to compute.
+* @param nbSeps : Number of separators to update.
+* @param nbUnderSep : Number of Particles under the separators.
+* @param separators : Array of separators.
+* @param nbWorkers : Number of processes taking part to the current computation.
+* @param flatIdxes : Array of separators, is updated here.
+* @param h : height of the octree.
+**/
+void Particles::compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
+		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
+		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis)
+{
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+			
+	// buffer allocation
+	int *globalHist = NULL;
+	int histSize = (1 << chunkSize); //pow(2, chunkSize)	
+	int localSep = 0;
+	if (rank < nbWorkers)
+		globalHist = new int [histSize]();		
+
+
+	// Histograms and reductions
+	int index=0;
+	for (int i=0; i<nbWorkers; i++)
+	{
+		for (int k=0; k<nbSeps; k++)
+		{
+			if( !((1<<k) & separators[i][nbSeps]) ) // si ce séparateur n'est pas déjà traité
+			{				
+				// Everybody computes the histogram
+				BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 
+					separators[i][k], prefixSize, chunkSize);
+				
+				// Reduction on responsible worker 
+				MPI_Reduce(H.getHistogram().data(), globalHist, histSize, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD);
+				
+				// Separator update by responsible worker
+				if (rank == i)
+				{
+					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
+					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
+					
+					// Adjust on the Octree Grid if it's possible
+					adjustOnGrid2(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
+				}
+			}
+		}
+		index++;
+	}
+	
+	// Broadcast
+	for(int rank=0; rank<nbWorkers; rank++)
+		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
+	
+	// dealloc
+	if (rank < nbWorkers)
+		delete [] globalHist;
 }
 
 /** 
@@ -985,129 +1053,6 @@ void Particles::updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double 
 		}
 	}
 }
-
-
-/**
-* This method computes chunkSize bits of mantissa separators and tests if an octree separator can be identified.
-* If yes : the separator is updated and tagged. If not, the computation will continue with the next bits.
-* The Separators array is updated and broadcasted. 
-* @param sumNbItems : Sum of particles on all processes in the current part to process.
-* @param histType : Exponent or Mantissa, parameter for the histogram computation.
-* @param dim : 1, 2 or 3 for the coordinate dimension selection.
-* @param prefixSize : Already computed bits.
-* @param chunkSize : Number of bits to compute.
-* @param nbSeps : Number of separators to update.
-* @param nbUnderSep : Number of Particles under the separators.
-* @param separators : Array of separators.
-* @param nbWorkers : Number of processes taking part to the current computation.
-* @param flatIdxes : Array of separators, is updated here.
-* @param h : height of the octree.
-**/
-void Particles::compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
-		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h)
-{
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-			
-	// buffer allocation
-	int *globalHist = NULL;
-	int histSize = (1 << chunkSize); //pow(2, chunkSize)	
-	int localSep = 0;
-	if (rank < nbWorkers)
-		globalHist = new int [histSize]();		
-
-
-	// Histograms and reductions
-	int index=0;
-	for (int i=0; i<nbWorkers; i++)
-	{
-		for (int k=0; k<nbSeps; k++)
-		{
-			if( !((1<<k) & separators[i][nbSeps]) ) // si ce séparateur n'est pas déjà traité
-			{				
-				// Everybody computes the histogram
-				BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 
-					separators[i][k], prefixSize, chunkSize);
-				
-				// Reduction on responsible worker 
-				MPI_Reduce(H.getHistogram().data(), globalHist, histSize, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD);
-				
-				// Separator update by responsible worker
-				if (rank == i)
-				{
-					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
-					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
-					
-					// Adjust on the Octree Grid if it's possible
-					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k);
-				}
-			}
-		}
-		index++;
-	}
-	
-	// Broadcast
-	for(int rank=0; rank<nbWorkers; rank++)
-		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
-	
-	// dealloc
-	if (rank < nbWorkers)
-		delete [] globalHist;
-}
-
-void Particles::compSepMantApprox2(const int & sumNbItems, const char & histType, const int & dim, 
-		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis)
-{
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-			
-	// buffer allocation
-	int *globalHist = NULL;
-	int histSize = (1 << chunkSize); //pow(2, chunkSize)	
-	int localSep = 0;
-	if (rank < nbWorkers)
-		globalHist = new int [histSize]();		
-
-
-	// Histograms and reductions
-	int index=0;
-	for (int i=0; i<nbWorkers; i++)
-	{
-		for (int k=0; k<nbSeps; k++)
-		{
-			if( !((1<<k) & separators[i][nbSeps]) ) // si ce séparateur n'est pas déjà traité
-			{				
-				// Everybody computes the histogram
-				BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 
-					separators[i][k], prefixSize, chunkSize);
-				
-				// Reduction on responsible worker 
-				MPI_Reduce(H.getHistogram().data(), globalHist, histSize, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD);
-				
-				// Separator update by responsible worker
-				if (rank == i)
-				{
-					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
-					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
-					
-					// Adjust on the Octree Grid if it's possible
-					adjustOnGrid2(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
-				}
-			}
-		}
-		index++;
-	}
-	
-	// Broadcast
-	for(int rank=0; rank<nbWorkers; rank++)
-		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
-	
-	// dealloc
-	if (rank < nbWorkers)
-		delete [] globalHist;
-}
-
 
 /*----------------------------------------------------------------------
 				SWAP METHODS
@@ -1325,100 +1270,6 @@ void Particles::exchangeMPI(const int * flatIdxes)
 	cout << "] --- >> OK" << endl;
 
 }
-
-/**
-* This function handles the global MPI particles exchange.
-* I also updates the particles attributes.
-* @param flatIdxes : Array of separators, is updated here.
-**/
-/*void Particles::exchangeMPI2(const int * flatIdxes)
-{
-	cout << "--- [ MPI Exchange ";
-	cout << " has to be replaced ......."
-	/*cout << flatIdxes[0] << " " <<
-			flatIdxes[1] << " " <<
-			flatIdxes[2] << " " <<
-			flatIdxes[3] << " " <<
-			flatIdxes[4] << "\n";
-*/
-	/*int size, rank;
-	MPI_Comm_size(MPI_COMM_WORLD,&size);
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-	// sendCount, 3 coordonnées par particule
-	int * sendCount = new int[size];		
-	for (int i=1; i<(size+1); i++)
-		sendCount[i-1] = (flatIdxes[i] - flatIdxes[i-1] ) * 3;
-
-/*	cout << rank << endl;
-	cout << sendCount[0] << " " <<
-			sendCount[1] << " " <<
-			sendCount[2] << " " <<
-			sendCount[3] << endl;
-*/
-	// sendOffsets
-	/*int * sOffset = new int[size];	
-	for (int i=0; i<size; i++)
-		sOffset[i] = (flatIdxes[i] + 1) * 3;
-	
-	/*cout << "sendOffsets : " << endl;
-	cout << sOffset[0] << " " <<
-			sOffset[1] << " " <<
-			sOffset[2] << " " <<
-			sOffset[3] << endl;	
-*/
-
-	/*for (int i=0; i<size; i++)
-	{
-		cout << rank << " sends to " << i  << "\t" << sendCount[i] << " coordinates, starting at offset : " << sOffset[i] << endl;
-	}
-	// recvCount 
-	int * recvCount = new int[size];	
-	MPI_Alltoall(sendCount, 1, MPI_INT, recvCount, 1, MPI_INT, MPI_COMM_WORLD);	
-
-	int nbRecvCoords = 0;
-	for (int i=0; i<size; i++)
-		nbRecvCoords += recvCount[i];
-	
-	// recvOffsets
-	int * rOffset = new int[size];
-	rOffset[0] = 0;
-	for(int i=1; i<size; i++)
-		rOffset[i] = rOffset[i-1] + recvCount[i-1];
-			
-	// AlltoAllv	
-	double * recvbuf = new double[nbRecvCoords]();	
-		
-	MPI_Alltoallv(reinterpret_cast<double*>(_coordinates), sendCount, sOffset, MPI_DOUBLE,
-				  recvbuf, 		recvCount, rOffset, MPI_DOUBLE, MPI_COMM_WORLD);
-	
-	// Update _nbParticles
-	if((nbRecvCoords/3) != _nbParticles)
-	{
-		// resize _coordinates array and update attributes
-		delete [] _coordinates;
-		_nbParticles = nbRecvCoords/3;
-		_coordinates = new vec3D[_nbParticles];
-		_last = _nbParticles -1;
-	}
-
-/// TODO : voir s'il est possible d'éviter la recopie par un swap de pointeurs !	
-	// Copy recvbuf into _coordinates
-	for (int i=0; i<_nbParticles; i++)
-		for (int j=0; j<3; j++)
-			_coordinates[i][j] = recvbuf[(i*3) + j];	
-
-	delete [] sendCount;
-	delete [] sOffset;
-	delete [] recvCount;
-	delete [] rOffset;
-	delete [] recvbuf;
-	
-	cout << "] --- >> OK" << endl;
-
-}*/
-
-
 
 /*----------------------------------------------------------------------
 							Display
