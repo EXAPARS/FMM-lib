@@ -137,13 +137,16 @@ public:
 		ui64 ** separators, const int & nbWorkers, int *flatIdxes);
 		
 	/// Approx Histograms
-	void compSepHistApprox(const int & depth, const decompo & decomp,
+	/*void compSepHistApprox(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
-		const ui32 edge, const ui32 height);
+		const ui32 edge, const ui32 height);*/
 		
 	void compSepHistApprox2(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 		const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves);
+
+	void updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts);
+
 		
 	void compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
