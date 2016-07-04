@@ -126,10 +126,6 @@ public:
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize);		
 	void compSepExpExact(int & sumNbItems, const char & histType, const int & dim, 
 		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
-		const int & nbWorkers, int *flatIdxes);		
-
-	void compSepExpExact2(int & sumNbItems, const char & histType, const int & dim, 
-		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
 		const int & nbWorkers, int *flatIdxes);	
 
 	void compSepMantExact(const int & sumNbItems, const char & histType, const int & dim, 

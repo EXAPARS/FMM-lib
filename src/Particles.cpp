@@ -753,55 +753,7 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 	const int & nbSeps, int * nbUnderSep, ui64 ** separators,
 	const int & nbWorkers, int *flatIdxes)
 {		
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
-	// alloc
-	int *globalHist = NULL;
-	if (rank < nbWorkers)
-		globalHist = new int [H12_SIZE]();
-	 
-	// Histograms and reductions
-	int index=0;
-	for (int rank=0; rank < nbWorkers; rank++)
-	{
-		// Everybody computes the histogram		
-		BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 0, 0, 0);
-		
-		// Reduction on responsible worker 		
-		MPI_Reduce(H.getHistogram().data(), globalHist, H12_SIZE, MPI_INT, MPI_SUM, rank, MPI_COMM_WORLD);
-		index++;
-	}
-
-	// compute SumNbItems
-	if (rank < nbWorkers)
-	{
-		int cpt = 0;
-		for (int i=0; i<H12_SIZE; i++)
-			cpt += globalHist[i];		
-		sumNbItems = cpt ;
-	}
- 	
- 	// separators computation
-	if (rank < nbWorkers){
-		compSepSE(globalHist, nbSeps, sumNbItems, nbUnderSep, separators[rank]);
-	}
-
-	// Broadcast
-	for(int rank=0; rank < nbWorkers; rank++)
-		MPI_Bcast(separators[rank], nbSeps, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
-	
-	// dealloc
-	if (rank < nbWorkers)
-		delete [] globalHist;
-}
-
-void Particles::compSepExpExact2(int & sumNbItems, const char & histType, const int & dim, 
-	const int & nbSeps, int * nbUnderSep, ui64 ** separators,
-	const int & nbWorkers, int *flatIdxes)
-{		
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-	int root = 0;
 	
 	// Root allocates globalHist array
 	int *globalHist = NULL;
@@ -810,13 +762,13 @@ void Particles::compSepExpExact2(int & sumNbItems, const char & histType, const 
 	 
 	// Histograms and reductions
 	int index=0;
-	for (int rank=0; rank < nbWorkers; rank++)
+	for (int pid=0; pid < nbWorkers; pid++)
 	{
 		// Everybody computes the histogram		
-		BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 0, 0, 0);// tmpMedian, known prefixSize, chunkSize)
+		BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 0, 0, 0);// tmpMedian, known prefixSize, chunkSize
 		
 		// Reduction on responsible worker 		
-		MPI_Reduce(H.getHistogram().data(), globalHist, H12_SIZE, MPI_INT, MPI_SUM, rank, MPI_COMM_WORLD);
+		MPI_Reduce(H.getHistogram().data(), globalHist, H12_SIZE, MPI_INT, MPI_SUM, pid, MPI_COMM_WORLD);
 		index++;
 	}
 	
@@ -830,9 +782,8 @@ void Particles::compSepExpExact2(int & sumNbItems, const char & histType, const 
 	}
 	
  	 // separators computation
-	if (rank < nbWorkers){
+	if (rank < nbWorkers)
 		compSepSE(globalHist, nbSeps, sumNbItems, nbUnderSep, separators[rank]);
-	}
 
 	// Broadcast
 	for(int rank=0; rank < nbWorkers; rank++)
@@ -948,7 +899,7 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	
 	// sign + exponent 
  	int sumNbItems = 0;	
-	compSepExpExact2(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
+	compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
 	
 	// 16 , 16, 16, 4 bits of mantissa
 	compSepMantApprox2(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
