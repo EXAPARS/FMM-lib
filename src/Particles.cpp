@@ -982,7 +982,7 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
 					
 					// Adjust on the Octree Grid if it's possible
-					adjustOnGrid2(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
+					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
 				}
 			}
 		}
@@ -1186,14 +1186,6 @@ void Particles::swap(const int & dim, const int & nbSeps, ui64 ** separators, co
 **/
 void Particles::exchangeMPI(const int * flatIdxes)
 {
-	cout << "--- [ MPI Exchange ";
-
-	/*cout << flatIdxes[0] << " " <<
-			flatIdxes[1] << " " <<
-			flatIdxes[2] << " " <<
-			flatIdxes[3] << " " <<
-			flatIdxes[4] << "\n";
-*/
 	int size, rank;
 	MPI_Comm_size(MPI_COMM_WORLD,&size);
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -1203,28 +1195,11 @@ void Particles::exchangeMPI(const int * flatIdxes)
 	for (int i=1; i<(size+1); i++)
 		sendCount[i-1] = (flatIdxes[i] - flatIdxes[i-1] ) * 3;
 
-/*	cout << rank << endl;
-	cout << sendCount[0] << " " <<
-			sendCount[1] << " " <<
-			sendCount[2] << " " <<
-			sendCount[3] << endl;
-*/
 	// sendOffsets
 	int * sOffset = new int[size];	
 	for (int i=0; i<size; i++)
 		sOffset[i] = (flatIdxes[i] + 1) * 3;
-	
-	/*cout << "sendOffsets : " << endl;
-	cout << sOffset[0] << " " <<
-			sOffset[1] << " " <<
-			sOffset[2] << " " <<
-			sOffset[3] << endl;	
-*/
 
-	for (int i=0; i<size; i++)
-	{
-		cout << rank << " sends to " << i  << "\t" << sendCount[i] << " coordinates, starting at offset : " << sOffset[i] << endl;
-	}
 	// recvCount 
 	int * recvCount = new int[size];	
 	MPI_Alltoall(sendCount, 1, MPI_INT, recvCount, 1, MPI_INT, MPI_COMM_WORLD);	
@@ -1255,7 +1230,6 @@ void Particles::exchangeMPI(const int * flatIdxes)
 		_last = _nbParticles -1;
 	}
 
-/// TODO : voir s'il est possible d'éviter la recopie par un swap de pointeurs !	
 	// Copy recvbuf into _coordinates
 	for (int i=0; i<_nbParticles; i++)
 		for (int j=0; j<3; j++)
@@ -1267,8 +1241,6 @@ void Particles::exchangeMPI(const int * flatIdxes)
 	delete [] rOffset;
 	delete [] recvbuf;
 	
-	cout << "] --- >> OK" << endl;
-
 }
 
 /*----------------------------------------------------------------------
@@ -1481,7 +1453,6 @@ void updateFlatten(int *& flatIdxes, int & flatIdxSize, int nbWorkers, int nbSep
 	delete [] aux;	
 }
 
-
 /**
 * This function updates the array of particles that will be used to update the new nodes of particles.
 * @param p : Array of particles, is updated here.
@@ -1516,65 +1487,16 @@ void fillParticles(Particles **& p, int nbWorkers, int nbParts, int * flatIdxes)
 * @param c : octree grid square side.
 * @param h : octree height.
 * @param k : separator index
+* @param grid : Array of octree separators
+* @param nbGridAxis : Number of octree separators
 **/
-void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k)
+void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis)
 {
-	cout << "---- ADJUST ON GRID --- c: " << c << ", h : " << h << endl;
-	
-	// Right (64 - nbBits)  bits to 1
+	// Masque qui met à 1 le nb de bits identifiés à droite : 0.......(1111 x nbBits)
 	ui64 mask = (1l<<(64-nbBits)) - 1l;
-	
-	// Value of the smallest Separator
-	int singleSep = COORDMAX/(1<<h); // 1<<h = 2^h
-
-	double min, max, diff = 0;
-	ui64 sepMin, sepMax = 0;
 
 	// compute min and max, by filling with Zeros and Ones
-	min = *((double *)&(separators[k]));		
-	ui64 valMax = separators[k] | mask;
-
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-	max = *((double *)&(valMax));	
-//#pragma GCC diagnostic pop	
-
-	diff = max - min;
-
-	// if min and max are separated by less than a square side
-	if ( diff < c ) 
-	{
-		// fit the min and max seps to the nearest octree grid separators
-		sepMin = round (min / singleSep) * singleSep;
-		sepMax = round (max / singleSep) * singleSep;
-		
-		// test if they are the same
-		if (sepMin == sepMax)
-		{
-			// update tag
-			separators[nbSeps] |= (1 << k);
-			
-			// cast the separator to double and update separators array
-			double sep = static_cast<double>(sepMin);
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-			separators[k] = *(ui64 *)&(sep);
-//#pragma GCC diagnostic pop	
-		}
-	}			
-}
-
-void adjustOnGrid2(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis)
-{
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	//cout << "[" << rank << "]---- ADJUST ON GRID 2 --- c: "<< c << " sep : " << *((double *)&(separators[k])) << " scaleBack " << scaleBackDB(*((double *)&(separators[k])))<< endl;
-
-	// Masque qui met à 1 le nb de bits identifiés à droite
-	ui64 mask = (1l<<(64-nbBits)) - 1l;
-	double min, max, diff = 0;
-	ui64 sepMin, sepMax = 0;
-
-	// compute min and max, by filling with Zeros and Ones
+	double min, max;
 	min = *((double *)&(separators[k]));		
 	ui64 valMax = separators[k] | mask;
 	max = *((double *)&(valMax));
@@ -1582,16 +1504,22 @@ void adjustOnGrid2(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui3
 	// Find nearest octree separators for MIN and MAX
 	int indxMin = -1;
 	int indxMax = -1;
+	
+	// for each octree separator
 	for (int i=0; i<nbGridAxis; i++)
 	{
+		// test if min is near enough
 		if ( abs(min-grid[i]) < (c/2) )
 		{
 			indxMin=i;
 			break;
 		}
 	}
+	
+	// for each octree separator
 	for (int i=0; i<nbGridAxis; i++)
 	{
+		// test if max is near enough
 		if ( abs(max-grid[i]) < (c/2) )
 		{
 			indxMax = i;
@@ -1599,10 +1527,9 @@ void adjustOnGrid2(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui3
 		}
 	}
 	
-	// If found : update marker and separator
+	// If found : update tag and separator
 	if ((indxMin != -1) && (indxMax==indxMin))
 	{
-		//cout << "-----------------------  Identified a separator BIS : " << grid[indxMin] << " " << scaleBackDB(grid[indxMin])<< endl;
 		// update tag
 		separators[nbSeps] |= (1 << k);
 			

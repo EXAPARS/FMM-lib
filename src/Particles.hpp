@@ -172,8 +172,7 @@ void updateFlatten(int *& flatIdxes, int & flatIdxSize, int nbWorkers, int nbSep
 void fillParticles(Particles **& p, int nbWorkers, int nbParts, int * flatIdxes);
 		 
 // Adjust Separators on Octree grid
-void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k);
-void adjustOnGrid2(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis);
+void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis);
 
 // Scale any array of coordinates
 void scale(vec3D & coords);
