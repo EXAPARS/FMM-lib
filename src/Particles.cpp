@@ -1505,7 +1505,7 @@ void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32
 	int indxMin = -1;
 	int indxMax = -1;
 	
-	// for each octree separator
+	// MIN computation, for each octree separator
 	for (int i=0; i<nbGridAxis; i++)
 	{
 		// test if min is near enough
@@ -1516,7 +1516,7 @@ void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32
 		}
 	}
 	
-	// for each octree separator
+	// MAX computation, for each octree separator
 	for (int i=0; i<nbGridAxis; i++)
 	{
 		// test if max is near enough
