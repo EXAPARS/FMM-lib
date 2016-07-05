@@ -628,7 +628,7 @@ void MortonAsyncGASPI::handleBufferAnswer(Node<T> * n, int * myBuffer, int & nbR
 
 		// refine
 		int mySep = gComm._rank-1;
-		computeMortonOneSep(n, myBuffer, 512, targets[mySep], gComm._nbUntilNode[mySep], 
+		computeMortonOneSepG(n, myBuffer, 512, targets[mySep], gComm._nbUntilNode[mySep], 
 			gComm._sepNodes[mySep], 3); 
 
 		// test if ok with tolerance

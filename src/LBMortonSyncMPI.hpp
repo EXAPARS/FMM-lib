@@ -428,7 +428,7 @@ void MortonSyncMPI::refine2(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, 
 	if (myNode >= 0)
 	{
 		Node<T> * myNodePtr = n->getNodePtrF(myNode);
-		computeMortonOneSep2(myNodePtr, globalBuffer, myIDsBuffer, myNodePtr->getNbChildren(), targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], refineHeight);
+		computeMortonOneSep(myNodePtr, globalBuffer, myIDsBuffer, myNodePtr->getNbChildren(), targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], refineHeight);
 	}
 
 
