@@ -71,7 +71,6 @@ void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, cons
 					tabDone[k]=1;
 				}
 			}
-	
 	// Dealloc
 	delete [] tabDone;
 }
@@ -80,12 +79,7 @@ template<typename T>
 void LBMortonBase::computeMortonSeps2(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
 	const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
 	const int64_t & rootNodeID, const int & divHeight) const
-{	
-	int aux = 0;
-	// verif
-	for (int i=0; i< nbLeaves; i++)
-		aux += globalBuffer[i];
-	
+{
 	int * tabDone = new int[nbSeps]();				// Flag indicating the separator's state		
 
 	for (int i=0; i<nbLeaves; i++) 					// for each box
@@ -104,10 +98,8 @@ void LBMortonBase::computeMortonSeps2(Node<T> * n, const int * globalBuffer, i64
 					tabDone[k]=1;
 				}
 			}
-	
 	// Dealloc
 	delete [] tabDone;
-	//cout << "InitializeSeps : " << sepNodes[0] << " " << sepNodes[1] << " " << sepNodes[2] << endl;
 }
 
 

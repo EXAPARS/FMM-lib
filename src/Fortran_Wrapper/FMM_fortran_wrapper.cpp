@@ -137,13 +137,14 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	
 	// Load Balance
 	LB_Base * LBB = nullptr;
-	cout << *LBstrategy << endl;
 	switch (*LBstrategy)
 	{
-		case MORTON_MPI_SYNC : 
-			LBB = new LoadBalancer<Particles, MortonSyncMPI>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr, nodeOwners, 0);
+		case MORTON_MPI_SYNC :
+			cout << "----- MORTON -----" << endl;
+			LBB = new LoadBalancer<Particles, MortonSyncMPI>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr/*centers*/, nodeOwners, 0);
 			break;
 		case HIST_APPROX :
+			cout << "----- KD TREE -----" << endl;		
 			// Get a copy of the octree centers, scale them and apply load balancing strategy
 			copyAndScaleArray(nodeCenters, centers, nbNodes);
 			LBB = new LoadBalancer<Particles, HistApprox>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);

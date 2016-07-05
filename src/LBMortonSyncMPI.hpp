@@ -143,27 +143,41 @@ void MortonSyncMPI::loadBalance2(Node<T> * n, const decompo & nb1ers, const doub
 { 
 
 	// MPI init
-	int wsize, rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &wsize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	int wsize; MPI_Comm_size(MPI_COMM_WORLD, &wsize);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
 
 	// LB init
 	int nbParts = wsize;
 	int nbSeps = nbParts - 1;
 			
-	// Octree read at height divHeight
+	// Initialize the first Leaves buffer
+	// The algorithm starts at level 2 -> 64 leaves
 	int64_t rootNodeID = 0;	
-	int divHeight = 2;
+	int divHeight = 2;	
+	int nbLeaves = 1 << 6;	
 	
-	// Fill the send buffer -- ON COMMENCE AU LEVEL divHeight
-	int nbLeaves = 1 << 6;						// max 64 noeuds au level 2
-	int *sendBuffer = new int [nbLeaves]();
-	i64 * IDsBuffer = new i64[nbLeaves]();
-	n->FillSendBufferAndIds(sendBuffer, IDsBuffer, divHeight);
-
-/*	for (int i=0; i<nbLeaves; i++)
-		cout << sendBuffer[i] << " (" << IDsBuffer[i] << ") ";
-	cout << endl;*/
+	// buffer and corresponding IDs
+	int * globalBuffer = nullptr;
+	i64 * IDsBuffer = nullptr;
+	if (rank == 0)
+	{
+		// alloc
+		globalBuffer = new int [nbLeaves]();
+		IDsBuffer = new i64[nbLeaves]();
+		
+		// fill with information from level divHeight
+		n->FillSendBufferAndIds(globalBuffer, IDsBuffer, divHeight);
+		
+		// SPECTRE : everybody already has the same informations, so quantity is multiplied by wsize.
+		for (int i=0; i<nbLeaves; i++)
+			globalBuffer[i] *= wsize;
+	} 
+	
+	// Everybody updates targets and meanNbItems, SPECTRE : same input -> meanNbItems=number of items per rank
+	int meanNbItems = n->getNbItems();
+	int * targets = new int [nbSeps];
+	for(int i=0; i<nbSeps; i++)
+		targets[i] = meanNbItems*(i+1); 
 
 	// sepNodes, nbUntilNode and stop criteria
 	int64_t * sepNodes = new int64_t [nbSeps];	
@@ -172,48 +186,38 @@ void MortonSyncMPI::loadBalance2(Node<T> * n, const decompo & nb1ers, const doub
 	int * nbUntilNode = new int [nbSeps](); 
 	double * diff = new double [nbSeps]();
 	int * stop = new int [nbSeps]();
-	
-	// Rank 0 gathers all the sendbuffers /** FIXME : everybody has the same **/
-	int *globalBuffer = nullptr;
-	if (rank == 0)
-	{
-		globalBuffer = new int [nbLeaves];
-		for (int i=0; i<nbLeaves; i++)
-			globalBuffer[i] = sendBuffer[i]*wsize;
-	} 
-		
-	//MPI_Reduce(sendBuffer, globalBuffer, nbLeaves, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-	delete sendBuffer;
-	
-	// Rank 0 computes sumNbItems and broadcasts it
-	// Pour le moment tout le monde a le même arbre, car lit les mêmes données /*TODO -- Hack moche et temporaire */
-	int sumNbItems = n->getNbItems() * wsize;
 
-	// Everybody updates targets and meanNbItems
-	int meanNbItems = sumNbItems / wsize;			
-	int * targets = new int [nbSeps];
-	for(int i=0; i<nbSeps; i++)
-		targets[i] = meanNbItems*(i+1); 
-	
 	// Initialize the separators computation
 	initializeSeps2(n, globalBuffer, IDsBuffer, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
-//	for (int i=0; i< nbSeps; i++)
-//		cout << "sepnode : " << i << " " << sepNodes[i] << ", nbUntil : " << nbUntilNode[i]<< endl;
 
-	
-//	cout << "REACHED loopRefine" << endl;
 	// Refine until reaching the tolerance constraint
 	loopRefine2(n, nbSeps, sepNodes, nbUntilNode, diff, targets, tolerance, meanNbItems, stop);	
 	
-//	cout << "REACHED END --> Fill the owners Array" << endl;
-/*	for (int i=0; i< nbSeps; i++)
-		cout << "sepnode : " << i << " " << sepNodes[i] << endl;*/
-	// Exchange the particles
-	/*mortonParticlesExchange(n, nbSeps, sepNodes, first, last);*/
+	// complete the array of leave owners with the new computed owners
 	fillOwnersArray(n, nbSeps, sepNodes, nodeOwners);
+	
+	// delete arrays
+	if (rank == 0)
+	{
+		delete globalBuffer;
+		delete IDsBuffer;
+	}
 }
 
+template<typename T>
+void MortonSyncMPI::initializeSeps2(Node<T> * n, int *globalBuffer, i64 * IDs, const int & nbLeaves, const int & nbSeps, 
+	int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, const int & divHeight) const
+{
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+	// Rank 0 initializes all separators
+	if (rank == 0)
+		computeMortonSeps2(n, globalBuffer, IDs, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
+	
+	// Broadcasts sepNodes and nbBeforeBox
+	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
+	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
+}
 
 template<typename T>
 void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, const int & nbLeaves, const int & nbSeps, 
@@ -234,24 +238,7 @@ void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, const int & n
 	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
 }
 
-template<typename T>
-void MortonSyncMPI::initializeSeps2(Node<T> * n, int *globalBuffer, i64 * IDs, const int & nbLeaves, const int & nbSeps, 
-	int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, const int & divHeight) const
-{
-	int rank; 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	// Rank 0 initializes all separators
-	if (rank == 0)
-	{
-		computeMortonSeps2(n, globalBuffer, IDs, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
-		delete globalBuffer;
-	}
-	
-	// Broadcasts sepNodes and nbBeforeBox
-	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
-	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
-}
 
 
 template<typename T>

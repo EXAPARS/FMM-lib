@@ -588,14 +588,11 @@ void Particles::swapOctree(int * sums, int * boxDest)
 	**/ 
 	
 	int * tag = new int[_nbParticles]();
-	
 	int ctr[8] = {0};
 	bool round = false;
-	
 	vec3D nextOne, tmp;
 	int boxIndex;
 	int globalIndex;
-	
 	
 	/**
 	Traverses the table of tags.
@@ -649,7 +646,6 @@ void Particles::swapOctree(int * sums, int * boxDest)
 			tmp = Particles::_coordinates[globalIndex];
 			Particles::_coordinates[globalIndex] = nextOne;
 			
-			
 			// substract the offset
 			globalIndex = globalIndex - _first;
 			
@@ -662,8 +658,8 @@ void Particles::swapOctree(int * sums, int * boxDest)
 			{
 				nextOne = tmp;			
 				boxIndex = boxDest[globalIndex];
-			}				
-		}		
+			}
+		}
 		// Increase i
 		++i;
 	}
