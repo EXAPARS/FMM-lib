@@ -35,14 +35,9 @@ public:
 	template <typename T>
 	void loadBalance2(Node<T> * n, const decompo & nb1ers, const double & dist, double tolerance, 
 		const int & first, const int & last, Gaspi_communicator & gComm, i64 * nodeOwners) const;
-	
-	template <typename T>
-	void initializeSeps(Node<T> * n, int *globalBuffer, const int & nbLeaves, const int & nbSeps, 
-		int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, 
-		const int & divHeight) const;	
 
 	template <typename T>
-	void initializeSeps2(Node<T> * n, int *globalBuffer, i64* IDs, const int & nbLeaves, const int & nbSeps, 
+	void initializeSeps(Node<T> * n, int *globalBuffer, i64* IDs, const int & nbLeaves, const int & nbSeps, 
 		int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, 
 		const int & divHeight) const;
 
@@ -188,7 +183,7 @@ void MortonSyncMPI::loadBalance2(Node<T> * n, const decompo & nb1ers, const doub
 	int * stop = new int [nbSeps]();
 
 	// Initialize the separators computation
-	initializeSeps2(n, globalBuffer, IDsBuffer, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
+	initializeSeps(n, globalBuffer, IDsBuffer, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
 
 	// Refine until reaching the tolerance constraint
 	loopRefine2(n, nbSeps, sepNodes, nbUntilNode, diff, targets, tolerance, meanNbItems, stop);	
@@ -205,7 +200,7 @@ void MortonSyncMPI::loadBalance2(Node<T> * n, const decompo & nb1ers, const doub
 }
 
 template<typename T>
-void MortonSyncMPI::initializeSeps2(Node<T> * n, int *globalBuffer, i64 * IDs, const int & nbLeaves, const int & nbSeps, 
+void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, i64 * IDs, const int & nbLeaves, const int & nbSeps, 
 	int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, const int & divHeight) const
 {
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -218,28 +213,6 @@ void MortonSyncMPI::initializeSeps2(Node<T> * n, int *globalBuffer, i64 * IDs, c
 	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
 	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
 }
-
-template<typename T>
-void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, const int & nbLeaves, const int & nbSeps, 
-	int * targets, int * nbUntilNode, int64_t * sepNodes, const int64_t & rootNodeID, const int & divHeight) const
-{
-	int rank; 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	// Rank 0 initializes all separators
-	if (rank == 0)
-	{
-		computeMortonSeps(n, globalBuffer, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
-		delete globalBuffer;
-	}
-	
-	// Broadcasts sepNodes and nbBeforeBox
-	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
-	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
-}
-
-
-
 
 template<typename T>
 void MortonSyncMPI::loopRefine(Node<T> * n, const int & nbSeps, int64_t * sepNodes, int * nbUntilNode, 
