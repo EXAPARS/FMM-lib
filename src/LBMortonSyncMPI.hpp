@@ -207,7 +207,7 @@ void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, i64 * IDs, co
 
 	// Rank 0 initializes all separators
 	if (rank == 0)
-		computeMortonSeps2(n, globalBuffer, IDs, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
+		computeMortonSeps(n, globalBuffer, IDs, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
 	
 	// Broadcasts sepNodes and nbBeforeBox
 	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
@@ -331,6 +331,7 @@ void MortonSyncMPI::refine(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, d
 	int64_t nodeID;
 	Node<T> * node;
 	for (int i=0; i<wsize; i++)
+	{
 		if(NodesToRefine[i] >= 0)
 		{
 			// get the node
@@ -349,12 +350,12 @@ void MortonSyncMPI::refine(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, d
 				MPI_Reduce(sendBuffer, globalBuffer, nbLeaves, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD);
 			}
 		}
-
+	}
+	
 	// Each handler makes the refinement
 	if (myNode >= 0)
 		computeMortonOneSep(n, globalBuffer, nbLeaves, targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], divHeight);
 
-/// TODO : supprimer le broadcast de nbUNtilNode si ça ne sert à rien
 	// Broadcast all new sepNodes and nbBeforeBox
 	for (int i=1; i<wsize; i++)
 	{
@@ -431,8 +432,6 @@ void MortonSyncMPI::refine2(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, 
 		computeMortonOneSep(myNodePtr, globalBuffer, myIDsBuffer, myNodePtr->getNbChildren(), targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], refineHeight);
 	}
 
-
-	/// TODO : supprimer le broadcast de nbUNtilNode si ça ne sert à rien
 	// Broadcast all new sepNodes and nbBeforeBox
 	for (int i=1; i<wsize; i++)
 	{
@@ -442,7 +441,6 @@ void MortonSyncMPI::refine2(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, 
 
 	delete sendBuffer;
 	delete globalBuffer;
-	
 }
 
 template<typename T>

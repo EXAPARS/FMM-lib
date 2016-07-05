@@ -256,7 +256,7 @@ void MortonAsyncGASPI::initializeSepNodes(Node<T> * n, int * globalBuffer, const
 	int * targets, const int & divRoot, const int & divHeight, Gaspi_communicator & gComm) const
 {				
 	// Update sepNodes and nbUntilNode
-	computeMortonSeps(n, globalBuffer, nbLeaves, nbSeps, targets, gComm._nbUntilNode, gComm._sepNodes, 
+	computeMortonSepsG(n, globalBuffer, nbLeaves, nbSeps, targets, gComm._nbUntilNode, gComm._sepNodes, 
 		divRoot, divHeight);
 		
 	delete globalBuffer;
