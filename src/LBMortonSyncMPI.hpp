@@ -252,35 +252,26 @@ template<typename T>
 void MortonSyncMPI::loopRefine2(Node<T> * n, const int & nbSeps, int64_t * sepNodes, int * nbUntilNode, 
 	double * diff, int * targets, const double & tolerance,  const int & meanNbItems, int * stop) const
 {
-	// MPI DEBUG
-	int wsize, rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &wsize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	
 	int finished = 0;
 	
 	while (!finished)
 	{
-		// update diff array - (diff without box)
+		// update diff array - (diff without the box containing the separator)
 		for (int i=0; i<nbSeps; i++)
 			diff[i] = abs((targets[i] - nbUntilNode[i]))/(meanNbItems*1.0);		
 		
 		// update stop array - test if last level is reached
-		Node<T> * tmp;
+		Node<T> * tmpNode;
 		for (int i=0; i<nbSeps; i++)
 		{
 			if (!stop[i])
 			{
-				tmp = n->getNodePtrF(sepNodes[i]);
-				if (tmp->isLeaf())
+				tmpNode = n->getNodePtrF(sepNodes[i]);
+				if (tmpNode->isLeaf())
 					stop[i] = 1;
 			}
 		}
-		// display sepNodes
-		/**for (int i=0; i<nbSeps; i++)
-		{
-			cout << "[" << rank << "] " << "sepNode : " << i << " " << sepNodes[i] << " " << stop[i]<< endl;
-		}**/
 
 		// test if there is a sep to refine
 		int refinement = 0;
@@ -305,10 +296,7 @@ void MortonSyncMPI::loopRefine2(Node<T> * n, const int & nbSeps, int64_t * sepNo
 		{
 			finished = 1;
 		}
-		/**cout << "[" << rank << "] " << "In LoopRefine2, finished = " << finished << endl;**/
 	}
-	
-	/** TODO --> Ameliorer la suite pour ne pas essayer de raffiner des noeuds deja finis */
 }
 
 
@@ -382,88 +370,69 @@ void MortonSyncMPI::refine2(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, 
 	const double & tolerance) const
 {	
 	// MPI init
-	int wsize, rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &wsize);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int wsize; MPI_Comm_size(MPI_COMM_WORLD, &wsize);
+	int rank;  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	// Get global information on which nodes are to refine
-	int64_t * NodesToRefine = new int64_t[wsize];
+	// Test if the current node has a node to refin
 	int mySep = rank-1;
 	int64_t myNode = -1;
-	
-	// Test the node
-	Node<T> * tmpNode;
+	Node<T> * tmpNode = nullptr;
 	if ((rank > 0) &&  (diff[mySep] > tolerance))
 		myNode = sepNodes[mySep];
 
-/* TODO - Simplifier, il n'est pas nécessaire de faire un Allgather, tout le monde a toutes les infos necessaires **/
+	// Everybody gets an array containg all nodes to refine ids
+	int64_t * NodesToRefine = new int64_t[wsize];
 	MPI_Allgather(&myNode, 1, MPI_INT64_T, NodesToRefine, 1, MPI_INT64_T, MPI_COMM_WORLD);
 	
-	// Everybody makes the necessary refinement and sends their information to the handler
-	int nbLeaves = 8; // 1 LEVEL ONLY
+	// Everybody makes the necessary refinements and send their information to the handler
+	int nbLeaves = 8; // maximum number of possible leaves for a ONE level only refinement
 	int * sendBuffer = new int[nbLeaves];
 	int * globalBuffer = new int[nbLeaves];
 	i64 * IDsBuffer = new i64[nbLeaves]();
 	i64 * myIDsBuffer = new i64[nbLeaves]();
 	
-	int divHeight = 1;
+	int refineHeight = 1;
 
 	// Send global information to each node to refine handler
 	int64_t nodeID;
-	Node<T> * node;
+	Node<T> * nodePtr;
+	
+	// for each possible node to refine
 	for (int i=0; i<wsize; i++)
+	{
+		// if the node is to refine
 		if(NodesToRefine[i] >= 0)
 		{
 			// get the node
 			nodeID = NodesToRefine[i];
-			node = n->getNodePtrF(nodeID);		// TEMPORARILY : NEW FUNCTION TO GET THE POINTER ON NODE, SINCE TREE IS NOT COMPLETE
-//			cout << rank << " From refine function, ID : " << node->getId() << ", level : " << node->getDepth() << endl;
+			nodePtr = n->getNodePtrF(nodeID);
 			
-			// refinement
-			if (node->getChildren() > 0)
+			// if possible to refine
+			if (nodePtr->getChildren() > 0)
 			{
 				// compute leaves buffer
-				//node->FillSendBuffer(sendBuffer, node->getDepth() + divHeight);
-				node->FillSendBufferAndIds(sendBuffer, IDsBuffer, node->getDepth() + divHeight);
-//				cout << rank << " From refine function, fill send buffer -> ok" << endl;
+				nodePtr->FillSendBufferAndIds(sendBuffer, IDsBuffer, nodePtr->getDepth() + refineHeight);
+
+				// Spectre : multiply by wsize instead of reduction
+				for (int j=0; j<(nodePtr->getNbChildren()); j++)
+					globalBuffer[j] = sendBuffer[j]*wsize;
 				
-				for (int ii=0; ii<node->getNbChildren() ; ii++)
-				{
-//					cout << "child : " << ii << " id : " << node->getChildren()[ii]->getId() << endl;
-//					cout << "nbElements : " << sendBuffer[ii] << ", nodeID : " << IDsBuffer[ii] << endl;
-				}
-				
-				// Reduce buffer on the handler
-				/*-- Ce reduce ne sert à rien, virer, multiplier les quantités par wsize FIXME**/
-				MPI_Reduce(sendBuffer, globalBuffer, node->getNbChildren(), MPI_INT, MPI_SUM, i, MPI_COMM_WORLD);
-//				cout << rank << " From refine function, mpi reduce  on " << i << "--> ok" << endl;
-				
-				// The handler keeps its IDs Buffer
-				if (i==rank)
-					for (int ii=0; ii<node->getNbChildren(); ii++)
-						myIDsBuffer[ii] = IDsBuffer[ii];
-				
+				// The handler keeps its leaves IDs buffer
+				if (rank==i)
+					for (int j=0; j<nodePtr->getNbChildren(); j++)
+						myIDsBuffer[j] = IDsBuffer[j];
 			}
-/*			else
-			{
-				cout << rank << " Impossible to refine that node, is already a LEAF" << endl;
-			}*/
 		}
-
-	// Each handler makes the refinement
-//	cout << rank << " Before Morton Comp One Sep, nbUntilNode : " << nbUntilNode[rank-1] << endl;
-	
-
+	}
 
 	if (myNode >= 0)
 	{
 		Node<T> * myNodePtr = n->getNodePtrF(myNode);
-		computeMortonOneSep2(myNodePtr, globalBuffer, myIDsBuffer, myNodePtr->getNbChildren(), targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], divHeight);
+		computeMortonOneSep2(myNodePtr, globalBuffer, myIDsBuffer, myNodePtr->getNbChildren(), targets[rank-1], nbUntilNode[rank-1], sepNodes[rank-1], refineHeight);
 	}
-//	cout << rank << " After Morton Comp One Sep " << endl;
 
 
-/// TODO : supprimer le broadcast de nbUNtilNode si ça ne sert à rien
+	/// TODO : supprimer le broadcast de nbUNtilNode si ça ne sert à rien
 	// Broadcast all new sepNodes and nbBeforeBox
 	for (int i=1; i<wsize; i++)
 	{
@@ -471,12 +440,9 @@ void MortonSyncMPI::refine2(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, 
 		MPI_Bcast(&nbUntilNode[i-1], 1, MPI_INT, i, MPI_COMM_WORLD);		
 	}
 
-//	cout << rank << " After BroadCasts " << endl;
-
 	delete sendBuffer;
 	delete globalBuffer;
 	
-//	cout << rank << " After Delete " << endl;
 }
 
 template<typename T>
