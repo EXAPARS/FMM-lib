@@ -156,4 +156,19 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	LBB->run();
 	
 	delete Particles::_coordinates;
+	cout << "---- Load Balancing ----> TERMINATED !" <<endl;
+	int * counters = new int[size + 1]();
+	
+	if (rank == 0)
+	{
+		// update counters
+		for (int i=0; i<nbLeaves; i++)
+		{
+			counters[nodeOwners[firstLeave+i]]++;
+		}
+		
+		// display counters
+		for (int i=0; i<size+1; i++)
+			cout << i << " : " << counters[i] << endl; 
+	}
 }

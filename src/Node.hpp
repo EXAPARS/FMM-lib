@@ -209,8 +209,6 @@ void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSo
 	if (nbChildren > 0)
 	{
 		i64 fSonID = firstSonId[nodeID]-1; // Fortran array indices start with 1 instead of 0
-			/**cout << "READING Fortran Octree nodeID : " << nodeID << ", nbChildren : " << nbChildren << ",fson : " << fSonID << ", nbElements : " << getContent().getNbParticles()  
-			 << ", level : " << _depth << endl;**/
 		
 		// allocate the children nodes, update them and recursive call
 		T * pTab = new Particles[nbChildren];
@@ -244,10 +242,6 @@ void Node<T>::read_octree(i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSo
 		}
 
 		delete [] pTab;
-	}
-	else
-	{
-		//cout << "LEAF nodeID : " << nodeID << ", containing : " << getContent().getNbParticles() << ", first : " << getContent().getFirstIndex() << ", last : " << getContent().getLastIndex() << endl;
 	}
 }
 /*----------------------------------------------------------------------
@@ -290,7 +284,7 @@ Node<T> * Node<T>::getNodePtr(const int64_t & id)
 				n = n->getChildren()[sonID];
 			else
 			{
-				cout << "Has no children !" << endl;
+				cerr << "Has no children !" ;
 				exit(4);
 			}
 		}
@@ -306,7 +300,6 @@ Node<T> * Node<T>::getNodePtr(const int64_t & id)
 template<typename T>
 Node<T> * Node<T>::getNodePtrF(const int64_t & targetID)
 {
-	//cout << "Getting pointer on : " << targetID << endl;
 	// Pointer on the root of the tree
 	Node<T> * n = this;
 	while(n->getId() != 0)
@@ -318,7 +311,6 @@ Node<T> * Node<T>::getNodePtrF(const int64_t & targetID)
 	else
 	{
 		n = goToTarget(targetID);
-		//printf( "Returning the target node. id = %ld, depth = %d\n",n->getId(), n->getDepth());
 		return n;
 	}
 }
@@ -600,7 +592,6 @@ void Node<T>::FillSendBufferAndIds(int * buffer, i64 * IDs, int targetLevel)
 template<typename T>
 void Node<T>::traverseAndFillLeavesAndIDs(int * buffer, i64 * IDs, int targetLevel)
 {
-	//cout << "Depth : "<< getDepth() << endl;
 	if( getDepth() < targetLevel )
 	{
 		// Recursive calls
@@ -624,7 +615,6 @@ void Node<T>::traverseAndFillLeavesAndIDs(int * buffer, i64 * IDs, int targetLev
 template<typename T>
 void Node<T>::traverseAndFillLeaves(int * buffer, int targetLevel)
 {
-	//cout << "Depth : "<< getDepth() << endl;
 	if( getDepth() < targetLevel )
 	{
 		// Recursive calls

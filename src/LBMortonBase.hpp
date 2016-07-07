@@ -81,10 +81,14 @@ void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, i64 
 	const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
 	const int64_t & rootNodeID, const int & divHeight) const
 {
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	
 	int * tabDone = new int[nbSeps]();				// Flag indicating the separator's state		
 
 	for (int i=0; i<nbLeaves; i++) 					// for each box
+	{
 		for (int k=0; k<nbSeps; k++)				// For each separator
+		{
 			if(!tabDone[k])							// If not already treated
 			{
 				nbUntilNode[k] += globalBuffer[i];
@@ -99,6 +103,8 @@ void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, i64 
 					tabDone[k]=1;
 				}
 			}
+		}
+	}
 	// Dealloc
 	delete [] tabDone;
 }

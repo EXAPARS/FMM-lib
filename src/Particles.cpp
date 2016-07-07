@@ -174,9 +174,7 @@ void Particles::loadCoordinatesASCII(const string & file)
 
 void Particles::scale()
 {	
-	initScalingParameters();
-	//cout << " scaling : translate = " << _translate << ", coeff = " << _coeff << endl;
-		
+	initScalingParameters();		
 	// scale the coordinates
 	for (int i=0; i<_nbParticles; i++)
 		for (int j=0; j<3; j++)
@@ -187,9 +185,7 @@ void Particles::scale()
 
 void scale(vec3D &coords)
 {	
-	// TODO : check if the scaling parameters are known 
-	// cout << " scaling : translate = " << Particles::_translate << ", coeff = " << Particles::_coeff << endl;
-	
+	// TODO : check if the scaling parameters are known 	
 	// scale the coordinates
 	for (int i=0; i<3; i++)
 	{
@@ -199,9 +195,7 @@ void scale(vec3D &coords)
 
 vec3D scaleBack(vec3D &coords)
 {	
-	// TODO : check if the scaling parameters are known 
-	//cout << " scaling : translate = " << Particles::_translate << ", coeff = " << Particles::_coeff << endl;
-	
+	// TODO : check if the scaling parameters are known 	
 	vec3D res;
 	// scale the coordinates
 	for (int i=0; i<3; i++)
@@ -222,8 +216,6 @@ double scaleBackDB(double coord)
 void scaleArray(double * coords, int nbcoords)
 {
 	// TODO : check if the scaling parameters are known 
-	//cout << " scaling : translate = " << Particles::_translate << ", coeff = " << Particles::_coeff << endl;
-
 	// scale the coordinates
 	for (int i=0; i<nbcoords; i++)
 	{
@@ -1043,7 +1035,6 @@ void Particles::updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double 
 		}
 		else if (!found && (tmpSepIdx != nbSeps)) // error
 		{
-			cout << "found = " << found << ", tmpSepIdx = " << tmpSepIdx << ", nbSeps = " << nbSeps << endl;
 			cerr << "[nodeOwners Computation] - Unexpected Case !";
 			exit(-1);
 		}
