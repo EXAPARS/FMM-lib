@@ -49,7 +49,7 @@ void displayTab(string info, T * tab, int size, ostream & out=cout)
 {
 	out << info << endl;
 	for (int i=0; i<size; i++)
-		out << std::dec << "[" << i << "]" << tab[i] << "  ";
+		out << "[" << i << "] " << tab[i] << "\n";
 	out << endl;
 }
 

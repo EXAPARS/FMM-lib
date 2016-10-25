@@ -1,5 +1,5 @@
 /*
-  Copyright 2015 - UVSQ
+  Copyright 2016 - UVSQ
   Authors list: Nathalie Möller, Eric Petit
 
   This file is part of the FMM-lib.
@@ -16,18 +16,22 @@
   the FMM-lib. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef FMM_HPP
-#define FMM_HPP
+#ifndef COMPLEX_HPP
+#define COMPLEX_HPP
 
-#include <string>
+#include <iostream>
+
 using namespace std;
 
-// Load Balancing strategy
-#define HIST_EXACT 0
-#define HIST_APPROX 1
-#define	MORTON_MPI_SYNC 2
-#define MORTON_GASPI_ASYNC 3
+struct complex
+{
+	double re;
+	double im;
+	complex(double a=0, double b=0): re(a), im(b){}
+	bool operator ==(const complex & c) { return re==c.re && im==c.im; }
+	bool operator !=(const complex & c) { return !(this->operator ==(c)); }   
+};
 
-void FMM_load_balance(string file, int nbParticles, double dist, double tolerance, int LBStrategy);
+ostream& operator << (ostream& out, const complex & c);
 
 #endif

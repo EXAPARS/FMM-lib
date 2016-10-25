@@ -19,22 +19,17 @@
 #include <string>
 #include <iostream>
 
-#include "mpi.h"
-#include "vec3D.hpp"
-#include "Particles.hpp"
-#include "Node.hpp"
-#include "Decomposition.hpp"
-#include "LoadBalancerBase.hpp"
-#include "LoadBalancer.hpp"
-#include "LBMortonSyncMPI.hpp"
-#include "LBHistApprox.hpp"
+
 #include "FMM_fortran_wrapper.hpp"
+
+
 using namespace std;
 
 // Load Balancing strategy
 #define	MORTON_MPI_SYNC 1
 #define HIST_APPROX 2
-#define MORTON_GASPI_ASYNC 3
+#define HIST_APPROX_X 3
+#define MORTON_GASPI_ASYNC 4 
 
 // Global variables
 static vec3D * elements;
@@ -140,13 +135,24 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	switch (*LBstrategy)
 	{
 		case MORTON_MPI_SYNC :
-			cout << "----- MORTON -----" << endl;
+			cout << "*** ----- MORTON -----" << endl;
 			LBB = new LoadBalancer<Particles, MortonSyncMPI>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, nullptr/*centers*/, nodeOwners, 0);
 			break;
 		case HIST_APPROX :
-			cout << "----- KD TREE -----" << endl;		
+			cout << "*** ----- KD TREE -----" << endl;		
 			// Get a copy of the octree centers, scale them and apply load balancing strategy
 			copyAndScaleArray(nodeCenters, centers, nbNodes);
+			LBB = new LoadBalancer<Particles, HistApprox>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
+			break;
+		case HIST_APPROX_X :
+			cout << "*** ----- SAUCISONNAGE EN X -----" << endl;		
+			// Get a copy of the octree centers, scale them and apply load balancing strategy
+			copyAndScaleArray(nodeCenters, centers, nbNodes);
+			// test rapide - saucissonnage en X
+			cout << "Decomposition has been modified to : " << endl;
+			nb1ers._list.resize(1);
+			nb1ers._list[0] = size;
+			nb1ers.display();			
 			LBB = new LoadBalancer<Particles, HistApprox>(octree, nb1ers, 0, 0, firstElem, lastElem, *maxEdge, center, nullptr, &centers[firstLeave*3], &nodeOwners[firstLeave], nbLeaves);
 			break;
 		default :
@@ -154,7 +160,7 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 			exit(0);
 	}
 	LBB->run();
-	
+
 	delete Particles::_coordinates;
 	cout << "---- Load Balancing ----> TERMINATED !" <<endl;
 	int * counters = new int[size + 1]();
@@ -171,4 +177,68 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 		for (int i=0; i<size+1; i++)
 			cout << i << " : " << counters[i] << endl; 
 	}
+}
+
+void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
+							 i64 * sendnode, 	i64 * sendnode_sz,
+							 i64 * nb_recv, 	i64 * nb_recv_sz,
+							 i64 * nb_send, 	i64 * nb_send_sz,
+							 i64 * nivterm, 
+							 i64 * levcom, 
+							 i64 * fniv, 
+							 i64 * nst, 
+							 i64 * nsp,
+							 complex * ff,
+							 i64 * fsend, 		i64 * send,
+							 i64 * endlev,		i64 * codech,
+							 complex * bufsave)
+{
+
+    Gaspi_m2l_communicator * gCommM2L;
+
+	// 0 - check received data
+	displayTab<i64>("recvnode", recvnode, *recvnode_sz);
+	//displayTab<complex>("ff", ff, 2);
+	
+	// 1 - init segments
+	create_gaspi_m2l_segments(nb_send, (int)(*nb_send_sz), 
+							  nb_recv, (int)(*nb_recv_sz),
+							  sendnode, (int)(*sendnode_sz),
+							  recvnode, (int)(*recvnode_sz),
+							  (int)(*levcom), (int)(*nivterm),
+							  fsend, send, endlev, codech,
+							  nst, nsp, bufsave, fniv,
+							  ff, gCommM2L);
+
+	// 2 - run communications
+	// 3 - destroy_gaspi_m2l_segments();
+}
+
+
+void fmm_gaspi_init_()
+{
+	//cout << "******* GASPI initialization *******" << endl;
+	MPI_Barrier(MPI_COMM_WORLD); 
+	SUCCESS_OR_DIE (gaspi_proc_init (GASPI_BLOCK));
+	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
+	//cout << "******* GASPI has been successfully initialized *******" << endl;
+}
+
+void fmm_gaspi_init_handler_()
+{
+	
+}
+
+void fmm_gaspi_destroy_handler_()
+{
+}
+
+void fmm_gaspi_finalize_()
+{
+	//cout << "******* GASPI termination *******" << endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+	gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK);	
+	gaspi_proc_term(GASPI_BLOCK);
+	MPI_Barrier(MPI_COMM_WORLD);	
+	//cout << "******* GASPI has been successfully terminated *******" << endl;
 }

@@ -196,7 +196,7 @@ void MortonAsyncGASPI::loadBalance(Node<T> * n, const decompo & nb1ers, const do
 }
 
 				/* *****************************************
-				 * 	   RANK 0 INITIALIZATIONS              *	
+				 * 	   RANK 0 INITIALIZATIONS              *
 				 ******************************************/
 
 /**

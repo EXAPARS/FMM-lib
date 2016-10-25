@@ -46,6 +46,8 @@ public:
 		edge *= coeff;
 		int nbGridAxis = (1 << height) - 1;
 		int firstAxisIdx = nbGridAxis/2*(-1);
+		
+		cout << "nbGridAxis : " << nbGridAxis << endl;
 
 		// Allocate and init the grid of octree separators, in 3D, X, Y and Z
 		double ** grid = new double* [3]();

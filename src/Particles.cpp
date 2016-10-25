@@ -777,12 +777,14 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 	for(int rank=0; rank < nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
 	
+	if (rank == 0)
+		for (int i=0; i<nbSeps; i++)
+			cout << std::hex << " i : " << separators[0][i] << endl;
+	
 	// dealloc
 	if (rank < nbWorkers)
 		delete [] globalHist;
 }
-
-
 
 /**
 * This method computes chunkSize bits of mantissa separators.
@@ -869,6 +871,8 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
 	const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves)
 {	
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	
 	// get parts, seps, dim and workers
 	int nbParts = decomp._list[depth];
 	int nbSeps = nbParts-1;
@@ -880,6 +884,10 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	ui64 ** separators = new ui64* [nbWorkers];	
 	for(int i=0; i<nbWorkers; i++)
 		separators[i] = new ui64[nbSeps+1](); // +1 is an ui64 to tag finished values.
+		
+		if (rank == 0)
+		for (int i=0; i< nbSeps; i++)
+			cout << std::hex << "Init i : " << i << " " << separators[0][i] << endl;
 
 	int ** SepIdx = new int* [nbWorkers];
 	for(int i=0; i<nbWorkers; i++)
@@ -968,9 +976,15 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 				{
 					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
 					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
-					
+					if (rank == 0)
+						for (int i=0; i<nbSeps; i++)
+							cout << " before adjust on grid, i : " << i << " " << separators[0][i] << endl;
+			
 					// Adjust on the Octree Grid if it's possible
 					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
+					if (rank == 0)
+						for (int i=0; i<nbSeps; i++)
+							cout << " after adjust on grid, i : " << i << " " << separators[0][i] << endl;					
 				}
 			}
 		}
@@ -980,6 +994,11 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 	// Broadcast
 	for(int rank=0; rank<nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
+	
+	cout << " ----------- Comp sep mant approx --------------- " << endl; 
+	if (rank == 0)
+		for (int i=0; i<nbSeps; i++)
+			cout << std::hex << " i : " << i << " " << separators[0][i] << endl;
 	
 	// dealloc
 	if (rank < nbWorkers)
@@ -1334,10 +1353,10 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 	// Histogram's positive's values only	4096/2 = 2048
 	/* FIXME : Is this a BUG ???? WHY 2046 and not 2047 ? */
 	for(int i=0; i<=2046; i++)
-		
+	{
 		// For each separator
 		for (int k=0; k<nbSeps; k++)
-		
+		{
 			// If not already treated
 			if(!tabDone[k])
 			{
@@ -1358,7 +1377,8 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 					tabDone[k]=1;
 				}
 			}
-
+		}
+	}
 	// Dealloc
 	delete [] tabCpt;
 	delete [] tabMax;
