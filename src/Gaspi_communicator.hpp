@@ -19,6 +19,7 @@
 #ifndef GASPI_COMMUNICATOR
 #define GASPI_COMMUNICATOR
 
+
 #include "GASPI.h"
 #include "vec3D.hpp"
 
@@ -30,7 +31,7 @@ class Gaspi_communicator
 {	
 private:
 	// segments sizes
-	gaspi_size_t _seg_RecvBuffer_size;	
+	gaspi_size_t _seg_RecvBuffer_size;
 	gaspi_size_t _seg_LocalBuffer_size;
 	gaspi_size_t _seg_SepNodes_size;
 	gaspi_size_t _seg_NbUntilNode_size;
@@ -39,13 +40,13 @@ private:
 	gaspi_size_t _seg_CommInfos_size;
 
 	// gaspi pointers on segments
-	gaspi_pointer_t _ptr_seg_RecvBuffer = 	nullptr;
+	gaspi_pointer_t _ptr_seg_RecvBuffer  = 	nullptr;
 	gaspi_pointer_t _ptr_seg_LocalBuffer = 	nullptr;
-	gaspi_pointer_t _ptr_seg_SepNodes = 	nullptr;
+	gaspi_pointer_t _ptr_seg_SepNodes    = 	nullptr;
 	gaspi_pointer_t _ptr_seg_NbUntilNode = 	nullptr;
-	gaspi_pointer_t _ptr_seg_InitCoords = 	nullptr;
-	gaspi_pointer_t _ptr_seg_NewCoords = 	nullptr;
-	gaspi_pointer_t _ptr_seg_CommInfos = 	nullptr;
+	gaspi_pointer_t _ptr_seg_InitCoords  = 	nullptr;
+	gaspi_pointer_t _ptr_seg_NewCoords   = 	nullptr;
+	gaspi_pointer_t _ptr_seg_CommInfos   = 	nullptr;
 
 public:
 	// processes info
@@ -53,17 +54,17 @@ public:
 	gaspi_rank_t _rank;
 
 	// segments Ids
-	const gaspi_segment_id_t _seg_RecvBuffer_id = 	0;// Receive Buffer 
-	const gaspi_segment_id_t _seg_LocalBuffer_id = 	1;// Local Buffer
-	const gaspi_segment_id_t _seg_SepNodes_id = 	2;// SepNodes Buffer
-	const gaspi_segment_id_t _seg_NbUntilNode_id = 	3;// NbUntilNode Buffer
-	const gaspi_segment_id_t _seg_InitCoords_id = 	4;// Coords
-	const gaspi_segment_id_t _seg_NewCoords_id = 	5;// newCoords
-	const gaspi_segment_id_t _seg_CommInfos_id = 	6;// info
+	gaspi_segment_id_t _seg_RecvBuffer_id; //= 	0;// Receive Buffer 
+	gaspi_segment_id_t _seg_LocalBuffer_id; //= 	1;// Local Buffer
+	gaspi_segment_id_t _seg_SepNodes_id; //= 	2;// SepNodes Buffer
+	gaspi_segment_id_t _seg_NbUntilNode_id; //= 	3;// NbUntilNode Buffer
+	gaspi_segment_id_t _seg_InitCoords_id; //= 	4;// Coords
+	gaspi_segment_id_t _seg_NewCoords_id; //= 	5;// newCoords
+	gaspi_segment_id_t _seg_CommInfos_id; //= 	6;// info
 	
 	// usual pointers on values in segments
-	int * _recvBuffer = nullptr;
-	int * _localBuffer = nullptr;
+	int * 	_recvBuffer = nullptr;
+	int * 	_localBuffer = nullptr;
 	int64_t * _sepNodes = nullptr;
 	int * _nbUntilNode = nullptr;
 	vec3D * _initCoords = nullptr;
@@ -79,7 +80,8 @@ public:
 
 /**
  * GASPI TAGS - Notification value
- **/ 
+ **/
+  
 // seg recvBuffer
 #define INIT_LEAVES_BUFFER 1
 #define LEAVES_BUFFER_ANSWER 2

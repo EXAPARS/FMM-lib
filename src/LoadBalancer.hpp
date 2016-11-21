@@ -32,7 +32,7 @@ template <typename T, typename LBPolicy>
 class LoadBalancer : public LB_Base, private LBPolicy
 {
 	using LBPolicy::loadBalance;
-
+	
 private:
 	Node<T> * _tree;
 	const decompo _nb1ers;
@@ -40,11 +40,17 @@ private:
 	const double _tol;
 	const int _first;
 	const int _last;
+	const double _maxEdge;
+	const vec3D _center;
 	Gaspi_communicator * _gComm;
+	int64_t * _nodeOwners;
+	double * _nodeCenters;
+	const int _nbLeaves;
 
 public:
 	LoadBalancer<T,LBPolicy>(Node<T> * n, const decompo & nb1ers, const double & dist, double tol,
-		const int & first, const int & last, Gaspi_communicator * gComm)
+		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator * gComm, double * nodeCenters, int64_t * nodeOwners, 
+		const int & nbLeaves)
 		: _tree(n)
 		, _nb1ers(nb1ers)
 		, _dist(dist)
@@ -52,11 +58,14 @@ public:
 		, _first(first)
 		, _last(last)
 		, _gComm(gComm)
-	{
-		cout << "Load Balancer constructor " << endl;
-	}
+		, _nodeOwners(nodeOwners)
+		, _maxEdge(maxEdge)
+		, _center(center)
+		, _nodeCenters(nodeCenters)
+		, _nbLeaves(nbLeaves)
+	{}
 	
-	virtual void run() const { loadBalance(_tree, _nb1ers, _dist, _tol, _first, _last, *_gComm); }
+	virtual void run() const { loadBalance(_tree, _nb1ers, _dist, _tol, _first, _last, _maxEdge, _center, *_gComm, _nodeCenters, _nodeOwners, _nbLeaves); }
 };
 
 #endif

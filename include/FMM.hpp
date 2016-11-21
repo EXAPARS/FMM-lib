@@ -30,5 +30,4 @@ using namespace std;
 
 void FMM_load_balance(string file, int nbParticles, double dist, double tolerance, int LBStrategy);
 
-
 #endif

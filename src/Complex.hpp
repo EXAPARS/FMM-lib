@@ -1,5 +1,5 @@
 /*
-  Copyright 2015 - UVSQ
+  Copyright 2016 - UVSQ
   Authors list: Nathalie Möller, Eric Petit
 
   This file is part of the FMM-lib.
@@ -16,33 +16,28 @@
   the FMM-lib. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Decomposition.hpp"
+#ifndef COMPLEX_HPP
+#define COMPLEX_HPP
 
-decompo::decompo(int nb)
+#include <iostream>
+
+using namespace std;
+
+struct complex
 {
-	create(nb);
-}
+	double re;
+	double im;
+	complex(double a=0, double b=0): re(a), im(b){}
+	bool operator ==(const complex & c) { return re==c.re && im==c.im; }
+	bool operator !=(const complex & c) { return !(this->operator ==(c)); }
+	complex operator+(const complex & b){
+		complex res;
+		res.re = this->re + b.re;
+		res.im = this->im + b.im;
+		return res;
+	}   
+};
 
-void decompo::create(int nb)
-{
-	int p = 2;
-	
-	while (p <= nb)
-	{
-		if (nb%p == 0)
-		{
-			_list.push_back(p);			
-			nb = nb/p;
-		}
-		else if (p>61)
-		{
-			cerr <<"The decomposition of the number of processes has a prime number > 61." << endl;
-			cerr <<"Please modifiy the number of processes." << endl;
+ostream& operator << (ostream& out, const complex & c);
 
-			exit(0);
-		}
-		else
-			p++;
-	}
-	reverse(_list.begin(), _list.end());
-}
+#endif

@@ -35,6 +35,8 @@ class Particles
 {
 public:
 	static vec3D * _coordinates;
+	static double _coeff;
+	static double _translate;
 
 protected:
 	int _first;
@@ -67,20 +69,44 @@ public:
 		double * coordsD = reinterpret_cast<double*>(coordinates);
 		return coordsD;
 	}
+	double getCoeff() const {return _coeff;}
+	double getTranslate() const {return _translate; }
 
 	// setters
 	void loadCoordinates(const int & nbParticles, const string & file);		
 	void loadCoordinates(const string & file);
 	void loadCoordinatesASCII(const string & file);
 	void loadCoordinatesASCII(const int & nbParticles, const string & file);
-	void loadCoordinatesASCII(const int & nbParticles, const string & file, Gaspi_communicator * gComm);		
+	void loadCoordinatesASCII(const int & nbParticles, const string & file, Gaspi_communicator * gComm);
+	void loadCoordinatesASCIIWithoutQuantity(const string & file);
+		
+	void initScalingParameters();
 	void scale();
+	
 	
 	void setAttributes(const int & index, const int & nbParticles, const int & edge, const vec3D & o);
 	void setAttrBounds(const int & firstIndex, const int & lastIndex);
 	void setNewCoordinates(vec3D * newCoords, const int & nbParticles) 
 	{ 	
 		_coordinates = newCoords;
+		_nbParticles = nbParticles;
+	}
+	void copyNewCoordinates(vec3D * newCoords, const int & nbParticles)
+	{
+		if (_coordinates)
+			delete _coordinates;
+		
+		_coordinates = new vec3D[nbParticles];
+		
+		for (int i=0; i<nbParticles; i++)
+		{
+			_coordinates[i].x = newCoords[i].x;
+			_coordinates[i].y = newCoords[i].y;
+			_coordinates[i].z = newCoords[i].z;
+		}
+		
+		_first = 0;
+		_last = nbParticles - 1;
 		_nbParticles = nbParticles;
 	}
 
@@ -94,13 +120,14 @@ public:
 	void dispatchOctree(int * quantities, int * destinations);
 	void swapOctree(int * qty, int * tabDest);
 	
-	// Load Balancing	
+	/** Load Balancing	**/
+	
 	/// Exact Histograms
 	void compSepHistExact(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize);		
 	void compSepExpExact(int & sumNbItems, const char & histType, const int & dim, 
 		const int & nbSeps, int * nbUnderSep, ui64 ** separators,
-		const int & nbWorkers, int *flatIdxes);		
+		const int & nbWorkers, int *flatIdxes);	
 	void compSepMantExact(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
 		ui64 ** separators, const int & nbWorkers, int *flatIdxes);
@@ -108,10 +135,11 @@ public:
 	/// Approx Histograms
 	void compSepHistApprox(const int & depth, const decompo & decomp,
 		const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
-		const ui32 edge, const ui32 height);
+		const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves);
 	void compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h);
+		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis);		
+	void updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts);
 
 	/// Swaps
 	void swap(const int & dim, const int & nbSeps, ui64 ** separators, const int & nbWorkers, 
@@ -144,6 +172,14 @@ void updateFlatten(int *& flatIdxes, int & flatIdxSize, int nbWorkers, int nbSep
 void fillParticles(Particles **& p, int nbWorkers, int nbParts, int * flatIdxes);
 		 
 // Adjust Separators on Octree grid
-void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k);
-			
+void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis);
+
+// Scale any array of coordinates
+void scale(vec3D & coords);
+void scaleArray(double * coords, int nbcoords);
+void copyAndScaleArray(double * vIN, double * vOUT, int nbCoords);
+vec3D scaleBack(vec3D &coords);
+double scaleBackDB(double coord);
+
+
 #endif

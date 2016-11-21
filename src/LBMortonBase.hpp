@@ -26,30 +26,69 @@ using namespace std;
 
 class LBMortonBase{
 public:	
-	void hello() const { cout << "hello from morton base" << endl; }
-		
-	template<typename T>
-	void computeMortonSeps(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
-		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
-		const int64_t & rootNodeID, const int & divHeight) const;
 
 	template<typename T>		
-	void computeMortonOneSep(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
+	void computeMortonOneSep(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
+		const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const;
+
+	template<typename T>
+	void computeMortonSeps(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
+		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
+		const int64_t & rootNodeID, const int & divHeight) const;
+	
+	// Keep this version for the Gaspi asynchronous Morton version
+	// TODO : to be updated
+	template<typename T>
+	void computeMortonOneSepG(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
 		const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const;
 	
+	template<typename T>
+	void computeMortonSepsG(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
+		const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
+		const int64_t & rootNodeID, const int & divHeight) const;		
 };
 
 
+template<typename T>
+void LBMortonBase::computeMortonOneSep(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbChildren, 
+	const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const
+{	
+	// restart
+	int sum = 0;
+	for (int i=0; i<nbChildren; i++)
+		sum += globalBuffer[i];
+	nbUntilNode -= sum;
+	
+	// for each leave
+	for (int i=0; i<nbChildren; i++)
+	{
+		// increase the counter
+		nbUntilNode += globalBuffer[i];	
+		
+		// if the counter exceeds the max		
+		if (nbUntilNode >= target )
+		{	
+
+			// update localSep, counters and exit
+			separator = IDs[i];
+			break;
+		}
+	}
+}
 
 template<typename T>
-void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
+void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, i64 * IDs, const int & nbLeaves, 
 	const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
 	const int64_t & rootNodeID, const int & divHeight) const
-{	
+{
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	
 	int * tabDone = new int[nbSeps]();				// Flag indicating the separator's state		
 
 	for (int i=0; i<nbLeaves; i++) 					// for each box
+	{
 		for (int k=0; k<nbSeps; k++)				// For each separator
+		{
 			if(!tabDone[k])							// If not already treated
 			{
 				nbUntilNode[k] += globalBuffer[i];
@@ -58,20 +97,26 @@ void LBMortonBase::computeMortonSeps(Node<T> * n, const int * globalBuffer, cons
 				if (nbUntilNode[k] >= targets[k])
 				{	
 					// Update the separators tab
-					sepNodes[k] = n->computeId(divHeight, rootNodeID, i);
+					sepNodes[k] = IDs[i];
 
 					// and mark the separator as treated
 					tabDone[k]=1;
 				}
 			}
-	
+		}
+	}
 	// Dealloc
 	delete [] tabDone;
-}	
+}
 
 
+
+	/*** Gaspi versions **/
+
+// Keep this version for the Gaspi asynchronous Morton version
+// TODO : to be updated
 template<typename T>
-void LBMortonBase::computeMortonOneSep(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
+void LBMortonBase::computeMortonOneSepG(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
 	const int & target, int & nbUntilNode, int64_t & separator, const int & divHeight) const
 {	
 	// restart
@@ -94,6 +139,35 @@ void LBMortonBase::computeMortonOneSep(Node<T> * n, const int * globalBuffer, co
 			break;
 		}
 	}
+}
+
+// Keep this version for the Gaspi asynchronous Morton version
+// TODO : to be updated
+template<typename T>
+void LBMortonBase::computeMortonSepsG(Node<T> * n, const int * globalBuffer, const int & nbLeaves, 
+	const int & nbSeps, int * targets,  int * nbUntilNode, int64_t * sepNodes, 
+	const int64_t & rootNodeID, const int & divHeight) const
+{	
+	int * tabDone = new int[nbSeps]();				// Flag indicating the separator's state		
+
+	for (int i=0; i<nbLeaves; i++) 					// for each box
+		for (int k=0; k<nbSeps; k++)				// For each separator
+			if(!tabDone[k])							// If not already treated
+			{
+				nbUntilNode[k] += globalBuffer[i];
+				
+				// If the number of particles exceeds the max
+				if (nbUntilNode[k] >= targets[k])
+				{	
+					// Update the separators tab
+					sepNodes[k] = n->computeId(divHeight, rootNodeID, i);
+
+					// and mark the separator as treated
+					tabDone[k]=1;
+				}
+			}
+	// Dealloc
+	delete [] tabDone;
 }
 
 #endif

@@ -15,7 +15,6 @@
   You should have received a copy of the GNU Lesser General Public License along with
   the FMM-lib. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "fmm_tools.hpp"
 
 void announce_axis(string axis, int rank)
@@ -79,9 +78,10 @@ void displayMpiMSG (int source, int tag)
 	}
 }
 
-void verbose(int rank, string message)
+void debug(string message)
 {
-	string file = "output/output_" + to_string(rank);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	string file = "debug_" + to_string((unsigned long long)rank);
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	out << message << endl;
@@ -91,7 +91,7 @@ void verbose(int rank, string message)
 
 void dump_tree_init(int rank)
 {
-	string file = "output/dump_tree_" + to_string (rank);
+	string file = "output/dump_tree_" + to_string ((unsigned long long)rank);
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
     out << "digraph tree{\n\t";	
@@ -100,7 +100,7 @@ void dump_tree_init(int rank)
 
 void dump_tree_add_child(int rank, int64_t parent, int64_t child, int nbParticles)
 {
-	string file = "output/dump_tree_" + to_string (rank);
+	string file = "output/dump_tree_" + to_string ((unsigned long long)rank);
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	
@@ -111,10 +111,203 @@ void dump_tree_add_child(int rank, int64_t parent, int64_t child, int nbParticle
 
 void dump_tree_close_file(int rank)
 {
-	string file = "output/dump_tree_" + to_string (rank);
+	string file = "output/dump_tree_" + to_string ((unsigned long long)rank);
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 
     out << "}";	
 	out.close();
 }
+
+void dfs_dump_spectre_octree(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers)
+{
+	// Open the output file
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) 
+	{	
+		string file = prefix + "cpp_dfs_dump_octree_" + to_string ((unsigned long long)rank) + ".txt";
+		ofstream out;
+		out.open (file, std::ofstream::out | std::ofstream::app);
+		
+		if (nodeID == 0) 
+		{
+			out << "digraph G{" << endl;
+			out <<  nodeID << "[label=" << '"' << "[" <<  nodeID << "] " << "\\n " << nbElemPerNode[0] << '"' << "]"  << endl;
+		}
+
+		i64 nbSons = nbSonsPerNode[nodeID];
+		i64 firstSonID = firstSonId[nodeID]-1;
+
+		// for each son, write and call
+		i64 sonID;
+		i64 owner;
+		i64 nbElem;
+		string style;
+		string color;
+		for (int i=0; i<nbSons; i++)
+		{
+			sonID = firstSonID + i;
+			owner = nodeOwner[sonID];
+			nbElem = nbElemPerNode[sonID];
+			out << nodeID << " -> " << sonID << ";" << endl;
+			out << sonID << "[label=" << '"' << "[" << sonID << "] " << "\\n " /*<< nbElem << "-" << owner */<< "C(" << int(centers[sonID*3]) << "," << int(centers[(sonID*3)+1]) << ",\\n" << int(centers[(sonID*3)+2]) << ")" << '"' << "];"  << endl;
+			/* TODO : Au secours que c'est moche --> faire un IO manip*/
+			
+			style = "filled";
+			if (owner == 1) 
+				color="red";
+			else if (owner == 2) 
+				color="orange";
+			else if (owner == 3) 
+				color="yellow";
+			else if (owner == 4) 
+				color="green";
+			else if (owner == 5) 
+				color="blue";
+			else if (owner == 6) 
+				color="pink";
+			else if (owner == 7) 
+				color="Coral";
+			else if (owner == 8) 
+				color="Sienna";
+			else
+			{
+				color="black";
+				style="solid";
+			}
+			out << sonID << "[color = " << color << ", style = " << style << "];" << endl;
+			dfs_dump_spectre_octree(prefix, nbElemPerNode, nbSonsPerNode, firstSonId, nbNodes, nodeOwner, sonID, centers);
+		}
+
+		if (nodeID == 0)
+		{
+			out << "}";	
+			out.close();
+		}
+	}
+}
+
+void dfs_dump_centers(string prefix, i64 * nbSonsPerNode, i64 * firstSonId, i64 nodeID, double * centers)
+{
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) 
+	{
+		// Open the output file
+		string file = prefix + to_string ((unsigned long long)rank) + ".txt";
+		ofstream out;
+		out.open (file, std::ofstream::out | std::ofstream::app);
+		
+		// Get sons Infos
+		i64 nbSons = nbSonsPerNode[nodeID];
+		i64 firstSonID = firstSonId[nodeID]-1;
+
+		out << "nbSons = " << nbSons << endl;
+		
+		// for each son, write and call
+		i64 sonID;
+		for (int i=0; i<nbSons; i++)
+		{
+			sonID = firstSonID + i;
+			out <</* "[" << sonID << "]" << */ centers[sonID*3] << " "<< centers[(sonID*3)+1] << " " << centers[(sonID*3)+2] << endl;
+			dfs_dump_centers(prefix, nbSonsPerNode, firstSonId, sonID, centers);
+		}
+
+		if (nodeID == 0)
+		{
+			out.close();
+		}
+	}
+}
+
+void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, 
+	i64 nodeID, double * centers, i64 * endlev, i64 * nbLevels)
+{
+int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) 
+	{
+		// BFS
+		for (int i=0; i< (*nbLevels); i++)
+		{
+			// Open the output file
+			string file = prefix + "_rank_" + to_string ((unsigned long long)rank) + "_level_" + to_string((unsigned long long)i)+ ".txt";
+			ofstream out;
+			out.open (file, std::ofstream::out | std::ofstream::app);
+
+			// write the centers
+			if (i==0)
+			{
+				i64 boxID = 0;
+				out << centers[boxID*3] << " "<< centers[(boxID*3)+1] << " " << centers[(boxID*3)+2] << endl;
+				
+			}
+			else
+			{
+				// nbBoxes
+				int nbBoxes = endlev[i] - endlev[i-1];
+				
+				// Box ID and center
+				i64 firstBoxID = endlev[i-1];
+				for (int j=0; j<nbBoxes; j++)
+				{
+					i64 boxID = firstBoxID + j;
+					out << centers[boxID*3] << " "<< centers[(boxID*3)+1] << " " << centers[(boxID*3)+2] << endl;
+				}
+			}
+			
+			// close the output file
+			out.close();
+		} 
+	} 
+}
+
+string convert(int a)
+{
+	return to_string((long long)(a));
+}
+
+/*
+static void wait_if_queue_full(const gaspi_queue_id_t queue_id,  gaspi_number_t request_size)
+{
+    // wait until request_size fits in queue
+	gaspi_number_t queue_size_max; 
+	SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
+	
+	gaspi_number_t queue_size; 
+	SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
+	
+	if (request_size == 0)
+		request_size = queue_size_max - queue_size_max/2;
+    
+    const uint64_t msg_interval = 1000;//ms
+    uint64_t wait_start = rdtsc(); 
+    uint64_t next_msg = msg_interval;
+    
+    while (queue_size + request_size >= queue_size_max)
+    {
+		gaspi_return_t e = gaspi_wait(queue_id,2);
+		if (e == GASPI_SUCCESS) 
+			break;
+		if (e != GASPI_TIMEOUT) 
+			SUCCESS_OR_DIE(e);
+			
+		uint64_t wait_time = rdtsc() - wait_start;
+        
+        if (wait_time / (TITUS_PROC_FREQ/1000) > next_msg)
+        {
+            next_msg += msg_interval;
+            TITUS_DBG << "wait_if_queue_full : WARNING : waiting for queue to flush for " << (rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) 
+					  << "ms (" << queue_size << " / " << queue_size_max << " elts in queue)" 
+						<< std::endl;
+        }
+
+        gaspi_number_t queue_size_max; 
+		SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
+        gaspi_number_t queue_size; 
+		SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
+    }
+}*/
+
+
+

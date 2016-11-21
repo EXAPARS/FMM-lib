@@ -21,6 +21,9 @@
 
 // Class variables initialization
 vec3D * Particles::_coordinates = NULL;
+double Particles:: _coeff = 0;
+double Particles:: _translate = 0;
+
 
 /*----------------------------------------------------------------------
 							Constructors
@@ -80,7 +83,6 @@ Particles::Particles(int nbParticles, string file, Gaspi_communicator * gComm)
 	_coordinates = gComm->_initCoords;
 	loadCoordinatesASCII(file);
 }
-
 
 
 				
@@ -172,8 +174,70 @@ void Particles::loadCoordinatesASCII(const string & file)
 
 void Particles::scale()
 {	
+	initScalingParameters();		
+	// scale the coordinates
+	for (int i=0; i<_nbParticles; i++)
+		for (int j=0; j<3; j++)
+		{
+			_coordinates[i][j] = (_coordinates[i][j] + _translate) * _coeff;	
+		}
+}
+
+void scale(vec3D &coords)
+{	
+	// TODO : check if the scaling parameters are known 	
+	// scale the coordinates
+	for (int i=0; i<3; i++)
+	{
+		coords[i] = (coords[i] + Particles::_translate) * Particles::_coeff;	
+	}
+}
+
+vec3D scaleBack(vec3D &coords)
+{	
+	// TODO : check if the scaling parameters are known 	
+	vec3D res;
+	// scale the coordinates
+	for (int i=0; i<3; i++)
+	{
+		res[i] = (coords[i] / Particles::_coeff) - Particles::_translate;
+	}
+	return res;
+}
+
+double scaleBackDB(double coord)
+{	
+	double res;
+	res = (coord / Particles::_coeff) - Particles::_translate;
+	return res;
+}
+
+
+void scaleArray(double * coords, int nbcoords)
+{
+	// TODO : check if the scaling parameters are known 
+	// scale the coordinates
+	for (int i=0; i<nbcoords; i++)
+	{
+		coords[i] = (coords[i] + Particles::_translate) * Particles::_coeff;
+	}
+}
+
+void copyAndScaleArray(double * vIN, double * vOUT, int nbCoords)
+{
+	// TODO : check if the scaling parameters are known	
+	for (int i=0; i<nbCoords; i++)
+	{
+		vOUT[i] = (vIN[i] + Particles::_translate) * Particles::_coeff;
+	}
+}
+
+
+/*TODO : le scaling est à améliorer */
+void Particles::initScalingParameters()
+{
 	// compute scaling parameters
-	/*double min, max;
+	double min, max;
 	min = max = 0;	
 	for (int i=0; i<_nbParticles; i++)
 	{
@@ -184,45 +248,18 @@ void Particles::scale()
 			else if (_coordinates[i][j] < min)
 				min = _coordinates[i][j];
 		}			
-	}*/
+	}
 	
-	/** F7X **/
-	/** ATTENTION SCALING EN DUR CALCULE PAR RAPPORT A 1 MPI**/	
-/**	double min = -11578.99023;
-	double max = 21199.99609;
-**/
+	double global_max, global_min;
+	MPI_Allreduce(&min, &global_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+	MPI_Allreduce(&max, &global_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	
-	/** DRONERA **/
-	double min = -1436.6006;
-	double max = 1913.9934;
-
-/*cout << setprecision(8);
-cout << min << endl;
-cout << max << endl;
-*/
-	double coeff = COORDMAX / (max - min) ;
-	double translate = min * -1.0;
-/*
-cout << coeff << endl;
-cout << translate << endl;
-*/	
-	// scale the coordinates
-	for (int i=0; i<_nbParticles; i++)
-		for (int j=0; j<3; j++)
-		{
-			_coordinates[i][j] = ( _coordinates[i][j] + translate) * coeff;	
-		}
-
-	/// ATTENTION VERIF A L'ARRACHE
-/**	for (int i=0; i<_nbParticles; i++)
-		for (int j=0; j<3; j++)
-			if (_coordinates[i][j] < 0)
-				cout << i << " " << j << " coordonnée négative : "<< _coordinates[i][j] << endl;
-	cout << "Verification des coordonnées terminée, pas de négatif." << endl;
-**/	
+	double coeff = COORDMAX / (global_max - global_min) ;
+	double translate = global_min * -1.0;
+	
+	_coeff = coeff;
+	_translate = translate;
 }
-
-
 
 /**
 * Loads the coordinates into the Class Variable _coordinates .\n
@@ -260,6 +297,46 @@ void Particles::loadCoordinatesASCII(const int & nbParticles, const string & fil
 	_coordinates = new vec3D[nbParticles];	
 	loadCoordinatesASCII(file);
 }
+
+/**
+* Loads the coordinates into the Class Variable _coordinates - Without knowing the number of coordinates to read .\n
+* Updates the instance attributes, allocates the Class variable _coordinates and reads the coordinates from file.
+* @param file : File containing the coordinates.
+*/
+void Particles::loadCoordinatesASCIIWithoutQuantity(const string & file)
+{
+	fstream in;
+	in.exceptions(ifstream::failbit|ifstream::badbit);
+	try
+	{
+		in.open(file, ifstream::in);
+		
+		// get number of nodes
+		int nbParticles = std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');			
+		_last = _first + nbParticles - 1;	
+		_nbParticles = nbParticles;
+		_coordinates = new vec3D[nbParticles];
+		
+		// load into _coordinates
+		in.seekg(0, ios::beg);
+		int index = 0;
+		while (index < _nbParticles)
+		{
+			in >> _coordinates[index].x;
+			in >> _coordinates[index].y;
+			in >> _coordinates[index].z;			
+			index++;
+		}
+		in.close();		
+	}
+	catch(ifstream::failure e)
+	{
+		cerr << "[erreur] " << e.what() << endl;
+		exit(0);
+	}
+}
+
+
 
 /**
 * Sets the attributes _nbParticles, _first, _edge and _origin.
@@ -378,7 +455,7 @@ Particles * Particles::divideOctree()
 	Particles * p = new Particles[8];
 	
 	/// MORTON ORDER	
-	p[0].setAttributes( _first, 	  	  qty[0], halfEdge, vec3D(xMIN, yMID, zMIN) );	//2
+	p[0].setAttributes( _first,   	      qty[0], halfEdge, vec3D(xMIN, yMID, zMIN) );	//2
 	p[1].setAttributes( _first + sums[0], qty[1], halfEdge, vec3D(xMID, yMID, zMIN) );	//3
 	p[2].setAttributes( _first + sums[1], qty[2], halfEdge, vec3D(xMIN, yMIN, zMIN) );	//1
 	p[3].setAttributes( _first + sums[2], qty[3], halfEdge, vec3D(xMID, yMIN, zMIN) );	//0
@@ -503,14 +580,11 @@ void Particles::swapOctree(int * sums, int * boxDest)
 	**/ 
 	
 	int * tag = new int[_nbParticles]();
-	
 	int ctr[8] = {0};
 	bool round = false;
-	
 	vec3D nextOne, tmp;
 	int boxIndex;
 	int globalIndex;
-	
 	
 	/**
 	Traverses the table of tags.
@@ -564,7 +638,6 @@ void Particles::swapOctree(int * sums, int * boxDest)
 			tmp = Particles::_coordinates[globalIndex];
 			Particles::_coordinates[globalIndex] = nextOne;
 			
-			
 			// substract the offset
 			globalIndex = globalIndex - _first;
 			
@@ -577,8 +650,8 @@ void Particles::swapOctree(int * sums, int * boxDest)
 			{
 				nextOne = tmp;			
 				boxIndex = boxDest[globalIndex];
-			}				
-		}		
+			}
+		}
 		// Increase i
 		++i;
 	}
@@ -591,9 +664,9 @@ void Particles::swapOctree(int * sums, int * boxDest)
 
 /**
 * This method computes the exact separators thanks to histograms.
-* The particles are swapped to respect the new separators.
+* The particles are swapped with respect to the new separators.
 * The flatIdxes array is updated with the new separators.
-* P is filled with th new particles in order to update the level of nodes. 
+* P is filled with the new particles in order to update the level of nodes. 
 * @param depth : Current depth.
 * @param decomp : Prime numbers decomposition list.
 * @param level : Complete level of nodes on the current depth
@@ -604,8 +677,7 @@ void Particles::swapOctree(int * sums, int * boxDest)
 void Particles::compSepHistExact(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize)
 {	
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	// get parts, seps, dim and workers
 	int nbParts = decomp._list[depth]; 	 				 
@@ -669,26 +741,25 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 	const int & nbSeps, int * nbUnderSep, ui64 ** separators,
 	const int & nbWorkers, int *flatIdxes)
 {		
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
 	
-	// alloc
+	// Root allocates globalHist array
 	int *globalHist = NULL;
 	if (rank < nbWorkers)
 		globalHist = new int [H12_SIZE]();
-
+	 
 	// Histograms and reductions
 	int index=0;
-	for (int rank=0; rank < nbWorkers; rank++)
+	for (int pid=0; pid < nbWorkers; pid++)
 	{
 		// Everybody computes the histogram		
-		BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 0, 0, 0);
+		BFHistogram H(histType, dim, getGlobalCoords(), flatIdxes[index]+1, flatIdxes[index+1], 0, 0, 0);// tmpMedian, known prefixSize, chunkSize
 		
 		// Reduction on responsible worker 		
-		MPI_Reduce(H.getHistogram().data(), globalHist, H12_SIZE, MPI_INT, MPI_SUM, rank, MPI_COMM_WORLD);
+		MPI_Reduce(H.getHistogram().data(), globalHist, H12_SIZE, MPI_INT, MPI_SUM, pid, MPI_COMM_WORLD);
 		index++;
 	}
-
+	
 	// compute SumNbItems
 	if (rank < nbWorkers)
 	{
@@ -697,15 +768,18 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 			cpt += globalHist[i];		
 		sumNbItems = cpt ;
 	}
- 	
- 	// separators computation
-	if (rank < nbWorkers){
+	
+ 	 // separators computation
+	if (rank < nbWorkers)
 		compSepSE(globalHist, nbSeps, sumNbItems, nbUnderSep, separators[rank]);
-	}
 
 	// Broadcast
 	for(int rank=0; rank < nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
+	
+	if (rank == 0)
+		for (int i=0; i<nbSeps; i++)
+			cout << std::hex << " i : " << separators[0][i] << endl;
 	
 	// dealloc
 	if (rank < nbWorkers)
@@ -773,57 +847,67 @@ void Particles::compSepMantExact(const int & sumNbItems, const char & histType, 
 }
 
 
-/*----------------------------------------------------------------------
-				APPROXIMATED HISTOGRAMS ON OCTREE GRID
-----------------------------------------------------------------------*/
+			/*----------------------------------------------------------------------|
+			|			APPROXIMATED HISTOGRAMS ON OCTREE GRID						|
+			|----------------------------------------------------------------------*/
 
-/**
-* This method computes approximates separators. 
-* The separators are modified in order to stick to the octree grid.
-* The tree height is computed in order to know the separators coordinates.
+/** 
+* This method computes approximated separators on the octree grid. 
 * @param depth : Current depth.
 * @param decomp : Prime numbers decomposition list.
-* @param level : Complete level of nodes on the current depth
+* @param nbWorkers : Number of active MPI ranks, computing the new separators.
 * @param p : Array of particles, which will be used to update the children nodes
 * @param flatIdxes is an array of separators, which will be updated with the last recursion.
 * @param flatIdxSize is the size of the flatIdxes array of separators
-
+* @param edge : Edge of the first octree node. (the biggest)
+* @param height : Octree height
+* @param grid : grid of octree existing separators. (dim x 2^height -1)
+* @param nbGridAxis : 2^height -1
+* @param nodeCenters : Array containing the center x, y and z coordinates of each leaf, per octree leaf 
+* @param nodeOwners : Array containing the pid of each cell's owner, per leaf 
+* @param nbLeaves : Number of leaves (nodes/cells) at the last bottom level of the octree 
 **/
 void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	const int & nbWorkers, Particles **& p, int *& flatIdxes, int & flatIdxSize,
-	const ui32 edge, const ui32 height)
+	const ui32 edge, const ui32 height, double ** grid, int nbGridAxis, double * nodeCenters, i64 * nodeOwners, int nbLeaves)
 {	
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	
 	// get parts, seps, dim and workers
-	int nbParts = decomp._list[depth]; 	 				 
+	int nbParts = decomp._list[depth];
 	int nbSeps = nbParts-1;
  	int dim = depth % 3;
 
-	// initialize arrays : counters, separators values and indexes						 		
+	// initialize arrays : counters, separators values and indexes
 	int * nbUnderSep = new int [nbSeps](); 
 	
 	ui64 ** separators = new ui64* [nbWorkers];	
 	for(int i=0; i<nbWorkers; i++)
 		separators[i] = new ui64[nbSeps+1](); // +1 is an ui64 to tag finished values.
+		
+		if (rank == 0)
+		for (int i=0; i< nbSeps; i++)
+			cout << std::hex << "Init i : " << i << " " << separators[0][i] << endl;
 
-	int ** SepIdx = new int* [nbWorkers];	
+	int ** SepIdx = new int* [nbWorkers];
 	for(int i=0; i<nbWorkers; i++)
-		SepIdx[i] = new int[nbSeps]();	
+		SepIdx[i] = new int[nbSeps]();
 	
 	// sign + exponent 
  	int sumNbItems = 0;	
-	compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);	
-						
-	// 16 , 16, 16, 4 bits of mantissa
-	compSepMantApprox(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);	
-	compSepMantApprox(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);
-	compSepMantApprox(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);	
-	compSepMantApprox(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height);
+	compSepExpExact(sumNbItems, 'E', dim, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes);
 	
-	// swap		
-	swap(dim, nbSeps, separators, nbWorkers, flatIdxes, SepIdx);				
+	// 16 , 16, 16, 4 bits of mantissa
+	compSepMantApprox(sumNbItems, 'M', dim, 12, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
+	compSepMantApprox(sumNbItems, 'M', dim, 28, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
+	compSepMantApprox(sumNbItems, 'M', dim, 44, 16, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);	
+	compSepMantApprox(sumNbItems, 'M', dim, 60,  4, nbSeps, nbUnderSep, separators, nbWorkers, flatIdxes, edge, height, grid, nbGridAxis);
+	
+	// Update the array of cell owners according to the newly computed separators
+	updateBoxOwners(nodeOwners, nbLeaves, dim, nodeCenters, separators, nbParts);
+	
+	// swap the particles around the computed separators
+	swap(dim, nbSeps, separators, nbWorkers, flatIdxes, SepIdx);
 
  	// Update flatten Indexes and size
 	updateFlatten(flatIdxes, flatIdxSize, nbWorkers, nbSeps, SepIdx);
@@ -841,8 +925,6 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	delete [] separators;
 	delete [] SepIdx;
 }
-
-
 
 /**
 * This method computes chunkSize bits of mantissa separators and tests if an octree separator can be identified.
@@ -862,10 +944,9 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 **/
 void Particles::compSepMantApprox(const int & sumNbItems, const char & histType, const int & dim, 
 		const int & prefixSize, const int & chunkSize, const int & nbSeps, int * nbUnderSep, 
-		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h)
+		ui64 ** separators, const int & nbWorkers, int *flatIdxes, ui32 c, ui32 h, double ** grid, int nbGridAxis)
 {
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
 			
 	// buffer allocation
 	int *globalHist = NULL;
@@ -895,9 +976,15 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 				{
 					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
 					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
-					
+					if (rank == 0)
+						for (int i=0; i<nbSeps; i++)
+							cout << " before adjust on grid, i : " << i << " " << separators[0][i] << endl;
+			
 					// Adjust on the Octree Grid if it's possible
-					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k);
+					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
+					if (rank == 0)
+						for (int i=0; i<nbSeps; i++)
+							cout << " after adjust on grid, i : " << i << " " << separators[0][i] << endl;					
 				}
 			}
 		}
@@ -908,11 +995,70 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 	for(int rank=0; rank<nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
 	
+	cout << " ----------- Comp sep mant approx --------------- " << endl; 
+	if (rank == 0)
+		for (int i=0; i<nbSeps; i++)
+			cout << std::hex << " i : " << i << " " << separators[0][i] << endl;
+	
 	// dealloc
 	if (rank < nbWorkers)
 		delete [] globalHist;
 }
 
+/** 
+* This method updates *nodeOwners*, the array of octree leaves owners.
+* The new owner is computed with the knowledge of the last owner and the new part in which the leave goes.
+* @param nodeOwners : Array containing the pid of each cell's owner, per leaf
+* @param nbLeaves : Number of leaves (nodes/cells) at the last bottom level of the octree
+* @param dim : Dimension on which the separators are computed
+* @param nodeCenters : Array containing the center x, y and z coordinates of each leaf, per octree leaf
+* @param separators  : is an array of recently computed separators
+* @param nbParts : number of targeted parts
+**/
+void Particles::updateBoxOwners(i64 * nodeOwners, int nbLeaves, int dim, double * nodeCenters, ui64 ** separators, int nbParts)
+{
+	int nbSeps = nbParts - 1;
+	
+	// for each leave
+	for (int i=0; i<nbLeaves; i++)
+	{
+		int tmpSepIdx = 0;
+		bool found = false;
+		while ( !found && (tmpSepIdx < nbSeps) )
+		{
+			// get leaf center coordinates on axis dim
+			double coord = nodeCenters[(3*i) + dim];
+			
+			// get current leaf owner
+			int currentOwner = nodeOwners[i];
+			
+			// get current owner's first separator
+			double tmpSep = *((double *)&(separators[currentOwner][tmpSepIdx]));
+			
+			// if the coordinate is greaye than the separator, go to the next separator
+			if (coord > tmpSep)
+			{
+				tmpSepIdx++;
+			}
+			else // if not, we have found the right part and we can compute the new owner
+			{
+				found = true;
+				nodeOwners[i] = nodeOwners[i]*(nbParts) + tmpSepIdx; 
+			}
+		}
+		
+		// if all separators have been tested and the part has not been found, the cell goes into the last part
+		if (!found && (tmpSepIdx == nbSeps))
+		{
+			nodeOwners[i] = nodeOwners[i]*(nbParts) + nbSeps;
+		}
+		else if (!found && (tmpSepIdx != nbSeps)) // error
+		{
+			cerr << "[nodeOwners Computation] - Unexpected Case !";
+			exit(-1);
+		}
+	}
+}
 
 /*----------------------------------------------------------------------
 				SWAP METHODS
@@ -932,9 +1078,8 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 void Particles::swapInterval(const int & first, const int & last, const int & dim, 
 	const ui64 * separators, const int nbSeps, int * sepIdx)
 {	
-	int size, rank;
-	MPI_Comm_size(MPI_COMM_WORLD,&size);
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	int size; MPI_Comm_size(MPI_COMM_WORLD,&size);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	
 	// Convert separators array from ui64 to double
 	double * seps = new double[nbSeps];
@@ -964,7 +1109,7 @@ void Particles::swapInterval(const int & first, const int & last, const int & di
 		counters[i] = 0;
 	
 	// Swap variables
-	int index = first;	
+	int index = first;
 	int mark = first;
 	int targetInterval = -1;
 	int targetIndex = 1;
@@ -1025,8 +1170,7 @@ void Particles::swapInterval(const int & first, const int & last, const int & di
 * @param flatIdxes : Array of separators, is updated here.
 * @param SepIdx : Array of separator indexes.
 **/
-void Particles::swap(const int & dim, const int & nbSeps, ui64 ** separators, const int & nbWorkers, 
-	int * flatIdxes, int ** SepIdx)
+void Particles::swap(const int & dim, const int & nbSeps, ui64 ** separators, const int & nbWorkers, int * flatIdxes, int ** SepIdx)
 {	
 	int index=0;
 	for (int rank=0; rank<nbWorkers; rank++)
@@ -1048,14 +1192,6 @@ void Particles::swap(const int & dim, const int & nbSeps, ui64 ** separators, co
 **/
 void Particles::exchangeMPI(const int * flatIdxes)
 {
-	cout << "--- [ MPI Exchange ";
-
-	/*cout << flatIdxes[0] << " " <<
-			flatIdxes[1] << " " <<
-			flatIdxes[2] << " " <<
-			flatIdxes[3] << " " <<
-			flatIdxes[4] << "\n";
-*/
 	int size, rank;
 	MPI_Comm_size(MPI_COMM_WORLD,&size);
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -1065,28 +1201,11 @@ void Particles::exchangeMPI(const int * flatIdxes)
 	for (int i=1; i<(size+1); i++)
 		sendCount[i-1] = (flatIdxes[i] - flatIdxes[i-1] ) * 3;
 
-/*	cout << rank << endl;
-	cout << sendCount[0] << " " <<
-			sendCount[1] << " " <<
-			sendCount[2] << " " <<
-			sendCount[3] << endl;
-*/
 	// sendOffsets
 	int * sOffset = new int[size];	
 	for (int i=0; i<size; i++)
 		sOffset[i] = (flatIdxes[i] + 1) * 3;
-	
-	/*cout << "sendOffsets : " << endl;
-	cout << sOffset[0] << " " <<
-			sOffset[1] << " " <<
-			sOffset[2] << " " <<
-			sOffset[3] << endl;	
-*/
 
-	for (int i=0; i<size; i++)
-	{
-		cout << rank << " sends to " << i  << "\t" << sendCount[i] << " coordinates, starting at offset : " << sOffset[i] << endl;
-	}
 	// recvCount 
 	int * recvCount = new int[size];	
 	MPI_Alltoall(sendCount, 1, MPI_INT, recvCount, 1, MPI_INT, MPI_COMM_WORLD);	
@@ -1117,7 +1236,6 @@ void Particles::exchangeMPI(const int * flatIdxes)
 		_last = _nbParticles -1;
 	}
 
-/// TODO : voir s'il est possible d'éviter la recopie par un swap de pointeurs !	
 	// Copy recvbuf into _coordinates
 	for (int i=0; i<_nbParticles; i++)
 		for (int j=0; j<3; j++)
@@ -1129,8 +1247,6 @@ void Particles::exchangeMPI(const int * flatIdxes)
 	delete [] rOffset;
 	delete [] recvbuf;
 	
-	cout << "] --- >> OK" << endl;
-
 }
 
 /*----------------------------------------------------------------------
@@ -1234,12 +1350,13 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 	}
 	
 	// Find Separators
-	// Histogram's positive's values only	
+	// Histogram's positive's values only	4096/2 = 2048
+	/* FIXME : Is this a BUG ???? WHY 2046 and not 2047 ? */
 	for(int i=0; i<=2046; i++)
-		
-		// For each separator		
+	{
+		// For each separator
 		for (int k=0; k<nbSeps; k++)
-		
+		{
 			// If not already treated
 			if(!tabDone[k])
 			{
@@ -1260,7 +1377,8 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 					tabDone[k]=1;
 				}
 			}
-
+		}
+	}
 	// Dealloc
 	delete [] tabCpt;
 	delete [] tabMax;
@@ -1280,8 +1398,7 @@ void compSepSE(const int * globalHist, const int & nbSeps, const int & sumNbItem
 **/
 void compSepM(const int * globalHist, const int & nbSeps, const int & sumNbItems,
 	int & localSep, const int & numSep, int & nbUnderSep, int chunkSize)
-{	
-
+{
 	int nbParts = nbSeps+1;		
 	int cpt = nbUnderSep;
 	int max = (sumNbItems/nbParts)*(numSep+1);
@@ -1343,7 +1460,6 @@ void updateFlatten(int *& flatIdxes, int & flatIdxSize, int nbWorkers, int nbSep
 	delete [] aux;	
 }
 
-
 /**
 * This function updates the array of particles that will be used to update the new nodes of particles.
 * @param p : Array of particles, is updated here.
@@ -1378,48 +1494,54 @@ void fillParticles(Particles **& p, int nbWorkers, int nbParts, int * flatIdxes)
 * @param c : octree grid square side.
 * @param h : octree height.
 * @param k : separator index
+* @param grid : Array of octree separators
+* @param nbGridAxis : Number of octree separators
 **/
-void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k)
+void adjustOnGrid(ui64 * separators, int nbWorkers, int nbSeps, int nbBits, ui32 c, ui32 h, int k, double * grid, int nbGridAxis)
 {
-	// Right (64 - nbBits)  bits to 1
+	// Masque qui met à 1 le nb de bits identifiés à droite : 0.......(1111 x nbBits)
 	ui64 mask = (1l<<(64-nbBits)) - 1l;
-	
-	// Value of the smallest Separator
-	int singleSep = COORDMAX/(1<<h); // 1<<h = 2^h
-
-	double min, max, diff = 0;
-	ui64 sepMin, sepMax = 0;
 
 	// compute min and max, by filling with Zeros and Ones
+	double min, max;
 	min = *((double *)&(separators[k]));		
 	ui64 valMax = separators[k] | mask;
+	max = *((double *)&(valMax));
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-	max = *((double *)&(valMax));	
-#pragma GCC diagnostic pop	
-
-	diff = max - min;
+	// Find nearest octree separators for MIN and MAX
+	int indxMin = -1;
+	int indxMax = -1;
 	
-	// if min and max are separated by less than a square side
-	if ( diff < c ) 
+	// MIN computation, for each octree separator
+	for (int i=0; i<nbGridAxis; i++)
 	{
-		// fit the min and max seps to the nearest octree grid separators
-		sepMin = round (min / singleSep) * singleSep;
-		sepMax = round (max / singleSep) * singleSep;
-		
-		// test if they are the same
-		if (sepMin == sepMax)
+		// test if min is near enough
+		if ( abs(min-grid[i]) < (c/2) )
 		{
-			// update tag
-			separators[nbSeps] |= (1 << k);
-			
-			// cast the separator to double and update separators array
-			double sep = static_cast<double>(sepMin);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-			separators[k] = *(ui64 *)&(sep);
-#pragma GCC diagnostic pop	
+			indxMin=i;
+			break;
 		}
-	}			
+	}
+	
+	// MAX computation, for each octree separator
+	for (int i=0; i<nbGridAxis; i++)
+	{
+		// test if max is near enough
+		if ( abs(max-grid[i]) < (c/2) )
+		{
+			indxMax = i;
+			break;
+		}
+	}
+	
+	// If found : update tag and separator
+	if ((indxMin != -1) && (indxMax==indxMin))
+	{
+		// update tag
+		separators[nbSeps] |= (1 << k);
+			
+		// cast the separator to double and update separators array
+		double sep = static_cast<double>(grid[indxMin]);
+		separators[k] = *(ui64 *)&(sep);
+	}
 }

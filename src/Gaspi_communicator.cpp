@@ -11,6 +11,15 @@ Gaspi_communicator::Gaspi_communicator(int nbLeaves, int nbParticles)
 	//nbSeps
 	int nbSeps = _wsize - 1;
 	
+	// segments ids
+	_seg_RecvBuffer_id 	= 	0;// Receive Buffer 
+	_seg_LocalBuffer_id = 	1;// Local Buffer
+	_seg_SepNodes_id 	= 	2;// SepNodes Buffer
+	_seg_NbUntilNode_id = 	3;// NbUntilNode Buffer
+	_seg_InitCoords_id 	= 	4;// Coords
+	_seg_NewCoords_id 	= 	5;// newCoords
+	_seg_CommInfos_id 	= 	6;// info
+	
 	// segments sizes
 	_seg_RecvBuffer_size = _wsize * nbLeaves * sizeof(int);
 	_seg_LocalBuffer_size = _wsize * nbLeaves * sizeof(int);
@@ -20,18 +29,12 @@ Gaspi_communicator::Gaspi_communicator(int nbLeaves, int nbParticles)
 	_seg_CommInfos_size = sizeof(int);
 
 	// segments creations	
-	gaspi_segment_create( _seg_RecvBuffer_id, _seg_RecvBuffer_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);			
-	gaspi_segment_create( _seg_LocalBuffer_id, _seg_LocalBuffer_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
-	gaspi_segment_create( _seg_SepNodes_id, _seg_SepNodes_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
-	gaspi_segment_create( _seg_NbUntilNode_id, _seg_NbUntilNode_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
-	gaspi_segment_create( _seg_InitCoords_id, _seg_InitCoords_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
-	gaspi_segment_create( _seg_CommInfos_id, _seg_CommInfos_size, 
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);		
+	gaspi_segment_create( _seg_RecvBuffer_id, 	_seg_RecvBuffer_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);			
+	gaspi_segment_create( _seg_LocalBuffer_id, 	_seg_LocalBuffer_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
+	gaspi_segment_create( _seg_SepNodes_id, 	_seg_SepNodes_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
+	gaspi_segment_create( _seg_NbUntilNode_id, 	_seg_NbUntilNode_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
+	gaspi_segment_create( _seg_InitCoords_id, 	_seg_InitCoords_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);
+	gaspi_segment_create( _seg_CommInfos_id, 	_seg_CommInfos_size, 	GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);		
 	
 	// update segpointers
 	gaspi_segment_ptr( _seg_RecvBuffer_id, 	&_ptr_seg_RecvBuffer 	);
@@ -58,8 +61,8 @@ Gaspi_communicator::Gaspi_communicator(int nbLeaves, int nbParticles)
 void Gaspi_communicator::initNewCoords(int newNbParticles)
 {
 	_seg_NewCoords_size = newNbParticles * 3 * sizeof(double);			// size
-	gaspi_segment_create( _seg_NewCoords_id, _seg_NewCoords_size, 		// create
-		GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);	
+	gaspi_segment_create( _seg_NewCoords_id, _seg_NewCoords_size, GASPI_GROUP_ALL, GASPI_BLOCK, GASPI_ALLOC_DEFAULT);		// create
+			
 	gaspi_segment_ptr( _seg_NewCoords_id,	&_ptr_seg_NewCoords	);		// pointers
 	_newCoords = (vec3D *)	_ptr_seg_NewCoords;		
 }	
