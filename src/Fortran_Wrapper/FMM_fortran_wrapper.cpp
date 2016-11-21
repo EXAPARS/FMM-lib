@@ -32,7 +32,8 @@ using namespace std;
 #define MORTON_GASPI_ASYNC 4 
 
 // Global variables
-static vec3D * elements;
+static vec3D * elements = nullptr;
+static Gaspi_m2l_communicator * gCommM2L = nullptr;
 
 
 /**
@@ -164,19 +165,6 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	delete Particles::_coordinates;
 	cout << "---- Load Balancing ----> TERMINATED !" <<endl;
 	int * counters = new int[size + 1]();
-	
-	if (rank == 0)
-	{
-		// update counters
-		for (int i=0; i<nbLeaves; i++)
-		{
-			counters[nodeOwners[firstLeave+i]]++;
-		}
-		
-		// display counters
-		for (int i=0; i<size+1; i++)
-			cout << i << " : " << counters[i] << endl; 
-	}
 }
 
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
@@ -190,55 +178,75 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 i64 * nsp,
 							 complex * ff,
 							 i64 * fsend, 		i64 * send,
+							 i64 * frecv,		i64 * recv,
 							 i64 * endlev,		i64 * codech,
 							 complex * bufsave)
 {
+	// Passage en Gaspi
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+	int mpi_rank, mpi_wsize;
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &mpi_wsize);
+    MPI_Barrier(MPI_COMM_WORLD);
+    gaspi_rank_t rank, wsize;
+    SUCCESS_OR_DIE(gaspi_proc_rank(&rank));
+    SUCCESS_OR_DIE(gaspi_proc_num(&wsize));
+    assert(rank == mpi_rank);
+    assert(wsize == mpi_wsize);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);
 
-    Gaspi_m2l_communicator * gCommM2L;
-
-	// 0 - check received data
-	displayTab<i64>("recvnode", recvnode, *recvnode_sz);
-	//displayTab<complex>("ff", ff, 2);
-	
-	// 1 - init segments
-	create_gaspi_m2l_segments(nb_send, (int)(*nb_send_sz), 
+	// First call : Class instantiation, allocations and Gaspi segment creation
+	if (! gCommM2L)
+	{	
+		t_begin = MPI_Wtime();
+    	construct_m2l_communicator(nb_send, (int)(*nb_send_sz), 
 							  nb_recv, (int)(*nb_recv_sz),
 							  sendnode, (int)(*sendnode_sz),
 							  recvnode, (int)(*recvnode_sz),
-							  (int)(*levcom), (int)(*nivterm),
-							  fsend, send, endlev, codech,
-							  nst, nsp, bufsave, fniv,
-							  ff, gCommM2L);
+							  gCommM2L);
+		t_end = MPI_Wtime();
+		add_time_sec("GASPI_init_class_and_create_segements", t_end - t_begin);
+	}
 
-	// 2 - run communications
-	// 3 - destroy_gaspi_m2l_segments();
+	// All other calls :
+	t_begin = MPI_Wtime();
+	gCommM2L->runM2LCommunications(sendnode, (int)(*sendnode_sz),
+								nb_send, (int) (*levcom), (int) (*nivterm), endlev,
+								frecv, recv, fsend, send,  nst, nsp, fniv, codech, bufsave, ff);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_func_echanges", t_end - t_begin);
+
+	// Rend la main au MPI
+	t_begin = MPI_Wtime();	
+    SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);    
 }
-
 
 void fmm_gaspi_init_()
 {
-	//cout << "******* GASPI initialization *******" << endl;
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD); 
 	SUCCESS_OR_DIE (gaspi_proc_init (GASPI_BLOCK));
 	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
-	//cout << "******* GASPI has been successfully initialized *******" << endl;
-}
-
-void fmm_gaspi_init_handler_()
-{
-	
-}
-
-void fmm_gaspi_destroy_handler_()
-{
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_proc_init", t_end - t_begin);
 }
 
 void fmm_gaspi_finalize_()
 {
-	//cout << "******* GASPI termination *******" << endl;
+	// TODO - dealloc les segments dans le destructeur, appelé seulement à la fin du programme
+	delete gCommM2L;
+
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD);
-	gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK);	
-	gaspi_proc_term(GASPI_BLOCK);
-	MPI_Barrier(MPI_COMM_WORLD);	
-	//cout << "******* GASPI has been successfully terminated *******" << endl;
+	SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));	
+	SUCCESS_OR_DIE(gaspi_proc_term(GASPI_BLOCK));
+	MPI_Barrier(MPI_COMM_WORLD);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_proc_term", t_end - t_begin);	
 }

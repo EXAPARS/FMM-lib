@@ -25,6 +25,8 @@
 #include "Complex.hpp"
 #include "fmm_tools.hpp"
 
+#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
+
 #include <iostream>
 using namespace std;
 /* ---- RAPPELS DES SEGMENTS UTILISES
@@ -41,12 +43,14 @@ class Gaspi_m2l_communicator
 private:
 	// segments sizes
 	gaspi_size_t _seg_globalRecvBuffer_size; 
+	gaspi_size_t _seg_globalSendBuffer_size; 
     gaspi_size_t _seg_globalRecvBufIdxPerRank_size;    
     gaspi_size_t _seg_remoteBufferIndexes_size;
 
 	// gaspi pointers on segments
 	gaspi_pointer_t _ptr_seg_globalRecvBuffer = nullptr;
-    gaspi_pointer_t _ptr_seg_globalRecvBufIdxPerRank = nullptr;
+    gaspi_pointer_t _ptr_seg_globalSendBuffer = nullptr;
+	gaspi_pointer_t _ptr_seg_globalRecvBufIdxPerRank = nullptr;
     gaspi_pointer_t _ptr_seg_remoteBufferIndexes = nullptr;
 
 public:
@@ -56,46 +60,52 @@ public:
 
 	// segments Ids
     gaspi_segment_id_t _seg_globalRecvBuffer_id; //	7 global Receive Buffer 
-    gaspi_segment_id_t _seg_globalRecvBufIdxPerRank_id; // 8
-    gaspi_segment_id_t _seg_remoteBufferIndexes_id; // 9
+    gaspi_segment_id_t _seg_globalSendBuffer_id; //	8
+    gaspi_segment_id_t _seg_globalRecvBufIdxPerRank_id; // 9
+    gaspi_segment_id_t _seg_remoteBufferIndexes_id; // 10
 	
 	// usual pointers on values in segments
 	complex * _globalRecvBuffer = nullptr;
+	complex * _globalSendBuffer = nullptr;
     int * _globalRecvBufIdxPerRank = nullptr;
     int * _remoteBufferIndexes = nullptr;
+    
+    // other arrays
+    int * _sendBufferIndexes = nullptr;
 
 public:
-	Gaspi_m2l_communicator(i64 * nb_recv, int nb_recv_sz, i64 * recvnode, int recvnode_sz);
-	void init_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
-	void init_remoteBufferIndexes(i64 * recvnode, int recvnode_sz, i64 * nb_recv);
+	Gaspi_m2l_communicator(
+		i64 * nb_send, int nb_send_sz, 
+		i64 * nb_recv, int nb_recv_sz,
+		i64 * sendnode, int sendnode_sz,
+		i64 * recvnode, int recvnode_sz);
 
+	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
+	void create_remoteBufferIndexes(i64 * recvnode, int recvnode_sz, i64 * nb_recv);
+	void create_globalSendBuffer(i64 * nb_send, int nb_send_sz);
+	void init_sendBufferIndexes(i64 * sendnode, int sendnode_sz, i64 * nb_send);	
+
+	void runM2LCommunications (i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
+		i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, complex * bufsave, complex * ff);
+
+	void initGlobalSendSegment(i64 * sendnode, int sendnode_sz, i64 * nb_send, int nivterm, int levcom, i64 * fsend, i64 * send, i64 * endlev,
+		i64 * codech, i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv, complex * ff);
+	
+	void updateFarFields(int src, int levcom, int nivterm, i64 * endlev, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, complex * ff);
 };
 
 
-void init_gaspi_m2l_segments(i64 * nb_recv, int nb_recv_sz, i64 * recvnode, int recvnode_sz) ;
 
-void create_gaspi_m2l_segments(i64 * nb_send, int nb_send_sz, 
+void construct_m2l_communicator(i64 * nb_send, int nb_send_sz, 
 							 i64 * nb_recv, int nb_recv_sz,
 							 i64 * sendnode, int sendnode_sz,
 							 i64 * recvnode, int recvnode_sz,
-							 int levcom, int nivterm,
-							 i64 * fsend, i64 * send, i64 * endlev, i64 * codech,
-							 i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv,
-							 complex * ff, 
                              Gaspi_m2l_communicator *& gCommM2L);
 
 
-
-
-void init_globalSendBuffer();
-void init_dataToSendIndexes();
-
-
-
-
-
-
-
+/** GASPI TOOLS **/
+void print_gaspi_config();
+//void print_gaspi_config(char ** out);
 
 /**
  * GASPI TAGS - Notification values
@@ -105,26 +115,8 @@ void init_dataToSendIndexes();
 #define REMOTE_ADDRESS 1
 
 
-  
-/*// seg recvBuffer
-#define INIT_LEAVES_BUFFER 1
-#define LEAVES_BUFFER_ANSWER 2
-
-// seg sepNodes
-#define INIT_SEP_NODES 1
-#define UPDATE_SEP_NODES 2
-#define LEAVES_BUFFER_REQUEST 3
-
-// seg nbUntil
-#define INIT_NB_UNTIL_NODE 1
-
-// seg newCoords
-#define COORDS_COMPLETED 1
-#define COORDS_TO_BE_CONTINUED 2
-#define COORDS_EMPTY 3
-*/
-
-
-
+// seg global recv bugger
+#define SEND_DATA 10
+#define NO_DATA 20
 
 #endif

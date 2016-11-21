@@ -78,9 +78,10 @@ void displayMpiMSG (int source, int tag)
 	}
 }
 
-void verbose(int rank, string message)
+void debug(string message)
 {
-	string file = "output/output_" + to_string((unsigned long long)rank);
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	string file = "debug_" + to_string((unsigned long long)rank);
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	out << message << endl;
@@ -260,3 +261,53 @@ int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 		} 
 	} 
 }
+
+string convert(int a)
+{
+	return to_string((long long)(a));
+}
+
+/*
+static void wait_if_queue_full(const gaspi_queue_id_t queue_id,  gaspi_number_t request_size)
+{
+    // wait until request_size fits in queue
+	gaspi_number_t queue_size_max; 
+	SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
+	
+	gaspi_number_t queue_size; 
+	SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
+	
+	if (request_size == 0)
+		request_size = queue_size_max - queue_size_max/2;
+    
+    const uint64_t msg_interval = 1000;//ms
+    uint64_t wait_start = rdtsc(); 
+    uint64_t next_msg = msg_interval;
+    
+    while (queue_size + request_size >= queue_size_max)
+    {
+		gaspi_return_t e = gaspi_wait(queue_id,2);
+		if (e == GASPI_SUCCESS) 
+			break;
+		if (e != GASPI_TIMEOUT) 
+			SUCCESS_OR_DIE(e);
+			
+		uint64_t wait_time = rdtsc() - wait_start;
+        
+        if (wait_time / (TITUS_PROC_FREQ/1000) > next_msg)
+        {
+            next_msg += msg_interval;
+            TITUS_DBG << "wait_if_queue_full : WARNING : waiting for queue to flush for " << (rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) 
+					  << "ms (" << queue_size << " / " << queue_size_max << " elts in queue)" 
+						<< std::endl;
+        }
+
+        gaspi_number_t queue_size_max; 
+		SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
+        gaspi_number_t queue_size; 
+		SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
+    }
+}*/
+
+
+

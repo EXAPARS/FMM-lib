@@ -21,18 +21,9 @@ set (CMAKE_CXX_COMPILER icpc)
 
 # variables
 set (LIBRARY_OUTPUT_PATH ../lib/${CMAKE_BUILD_TYPE})
-set (GASPI_VERSION "GPI-2")
-set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/${GASPI_VERSION}")
-set (GASPI_INCLUDE "${GASPI_DIR}/include")
 set (FMM_DIR "/da/soc/groupes/csc/projet.h4h/d101219/FMM/FMM-lib")
 set (FMM_INCLUDE "${FMM_DIR}/include")
 set (FMM_HEADERS "${FMM_DIR}/src")
-
-MESSAGE( STATUS "GASPI_DIR:				" ${GASPI_DIR} )
-MESSAGE( STATUS "GASPI_INCLUDE:			" ${GASPI_INCLUDE} )
-MESSAGE( STATUS "FMM_DIR:				" ${FMM_DIR} )
-MESSAGE( STATUS "FMM_INCLUDE:			" ${FMM_INCLUDE} )
-MESSAGE( STATUS "FMM_HEADERS:			" ${FMM_HEADERS} )
 
 # sources
 file (GLOB_RECURSE FMM_src_list ../src/*)
@@ -51,9 +42,17 @@ set (BOOST_LIB
 	)
 set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
 
+#GASPI
+set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
+set (GASPI_INCLUDE "${GASPI_DIR}/include")
+set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
+set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")
+set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
+
+
 # set compile FLAGS
-set (CMAKE_CXX_FLAGS "-g -std=c++11 -Wall")
-set (MPI_COMPILE_FLAGS "-g -std=c++11 -Wall")
+set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall")
+set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall")
 
 # set library
 add_library (
@@ -75,9 +74,9 @@ include_directories (${GASPI_INCLUDE})
 # LINK
 target_link_libraries(fmm
 	${MPI_LIBRARIES} 
-	${GASPI_LIBRARIES}
-        ${NMTOOLS_LIB}
-        ${BOOST_LIB}
+#	${GASPI_LIB}
+	${NMTOOLS_LIB}
+	${BOOST_LIB}
 )
 
 if(MPI_COMPILE_FLAGS)

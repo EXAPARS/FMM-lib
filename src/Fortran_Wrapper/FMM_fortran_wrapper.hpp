@@ -62,6 +62,7 @@ extern "C"
 								 i64 * nsp,
 								 complex * ff,
 								 i64 * fsend, 		i64 * send,
+								 i64 * frecv,		i64 * recv,
 								 i64 * endlev,		i64 * codech,
 								 complex * bufsave);
 	

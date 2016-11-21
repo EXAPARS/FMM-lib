@@ -496,8 +496,11 @@ void Node<T>::divideOctree()
 	
 	// Fill the children
 	if (_children)
-		verbose(rank, "There were already children here !!!");
-		
+	{
+		cerr << "There were already children here !!!";
+		exit(0);
+	}
+	
 	_children = new Node<T>* [8];
 	_nbChildren = 8;
 

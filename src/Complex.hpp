@@ -29,7 +29,13 @@ struct complex
 	double im;
 	complex(double a=0, double b=0): re(a), im(b){}
 	bool operator ==(const complex & c) { return re==c.re && im==c.im; }
-	bool operator !=(const complex & c) { return !(this->operator ==(c)); }   
+	bool operator !=(const complex & c) { return !(this->operator ==(c)); }
+	complex operator+(const complex & b){
+		complex res;
+		res.re = this->re + b.re;
+		res.im = this->im + b.im;
+		return res;
+	}   
 };
 
 ostream& operator << (ostream& out, const complex & c);

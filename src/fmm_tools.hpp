@@ -26,6 +26,7 @@
 #include <fstream> 
 #include <cmath>
 
+
 using namespace std;
 
 void announce_axis(string axis, int rank);
@@ -40,7 +41,9 @@ void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * n
 	i64 * endlev, i64 * nbLevels);
 
 
-void verbose(int rank, string message);
+void debug(string message);
+
+string convert(int a);
 
 
 /** templates **/
@@ -75,5 +78,9 @@ void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 void dump_tree_init(int rank);
 void dump_tree_add_child(int rank, int64_t parent, int64_t child, int nbParticles);
 void dump_tree_close_file(int rank);
+
+
+
+
 
 #endif
