@@ -167,6 +167,43 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	int * counters = new int[size + 1]();
 }
 
+void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
+							i64 * recvnode, i64 * recvnode_sz, 
+							i64 * sendnode, i64 * sendnode_sz,
+							i64 * nb_recv, 	i64 * nb_recv_sz,
+							i64 * nb_send, 	i64 * nb_send_sz)
+{
+	// Passage en Gaspi
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+    MPI_Barrier(MPI_COMM_WORLD);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+	// First call : Class instantiation, allocations and Gaspi segment creation
+	if (! gCommM2L)
+	{	
+		
+		t_begin = MPI_Wtime();
+    	construct_m2l_communicator(nb_send, (int)(*nb_send_sz), 
+							  nb_recv, (int)(*nb_recv_sz),
+							  sendnode, (int)(*sendnode_sz),
+							  recvnode, (int)(*recvnode_sz),
+							  ff, ne, (int)(*size),
+							  gCommM2L);
+		t_end = MPI_Wtime();
+		add_time_sec("GASPI_init_class_and_create_segments", t_end - t_begin);
+	}
+	
+	t_begin = MPI_Wtime();
+	gCommM2L->runM2LallReduce(ff, ne);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_allReduce", t_end - t_begin);
+	
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	//dumpBuffer(rank, ne, 10, "c", "ne after reduce : ");
+	
+}
+
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 							 i64 * sendnode, 	i64 * sendnode_sz,
 							 i64 * nb_recv, 	i64 * nb_recv_sz,
@@ -182,44 +219,23 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 i64 * endlev,		i64 * codech,
 							 complex * bufsave)
 {
-	// Passage en Gaspi
 	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-	int mpi_rank, mpi_wsize;
-	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &mpi_wsize);
-    MPI_Barrier(MPI_COMM_WORLD);
-    gaspi_rank_t rank, wsize;
-    SUCCESS_OR_DIE(gaspi_proc_rank(&rank));
-    SUCCESS_OR_DIE(gaspi_proc_num(&wsize));
-    assert(rank == mpi_rank);
-    assert(wsize == mpi_wsize);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
-
-	// First call : Class instantiation, allocations and Gaspi segment creation
-	if (! gCommM2L)
-	{	
-		t_begin = MPI_Wtime();
-    	construct_m2l_communicator(nb_send, (int)(*nb_send_sz), 
-							  nb_recv, (int)(*nb_recv_sz),
-							  sendnode, (int)(*sendnode_sz),
-							  recvnode, (int)(*recvnode_sz),
-							  gCommM2L);
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_init_class_and_create_segements", t_end - t_begin);
-	}
-
-	// All other calls :
+	
+	// run M2L SEND/RECV 
 	t_begin = MPI_Wtime();
 	gCommM2L->runM2LCommunications(sendnode, (int)(*sendnode_sz),
 								nb_send, (int) (*levcom), (int) (*nivterm), endlev,
 								frecv, recv, fsend, send,  nst, nsp, fniv, codech, bufsave, ff);
+								
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_func_echanges", t_end - t_begin);
 
+	// debug
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	//dumpBuffer(rank, ff, 10, "c", "ff after send/recv : ");
+
 	// Rend la main au MPI
-	t_begin = MPI_Wtime();	
+	t_begin = MPI_Wtime();
     SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin);    
@@ -249,4 +265,11 @@ void fmm_gaspi_finalize_()
 	MPI_Barrier(MPI_COMM_WORLD);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_proc_term", t_end - t_begin);	
+}
+
+// debug tools
+void fmm_dump_(complex * tab)
+{
+	int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+	dumpBuffer(mpi_rank, tab, 10, "fortran", "ne, ff");
 }

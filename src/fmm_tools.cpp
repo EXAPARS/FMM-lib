@@ -88,7 +88,6 @@ void debug(string message)
 	out.close();
 }
 
-
 void dump_tree_init(int rank)
 {
 	string file = "output/dump_tree_" + to_string ((unsigned long long)rank);

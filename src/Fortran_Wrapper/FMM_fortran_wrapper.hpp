@@ -50,7 +50,12 @@ extern "C"
 	// Gaspi
 	void fmm_gaspi_init_();
 	void fmm_gaspi_finalize_();
-	
+	void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
+							i64 * recvnode, i64 * recvnode_sz, 
+							i64 * sendnode, i64 * sendnode_sz,
+							i64 * nb_recv, 	i64 * nb_recv_sz,
+							i64 * nb_send, 	i64 * nb_send_sz);
+							
 	void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 								 i64 * sendnode, 	i64 * sendnode_sz,
 								 i64 * nb_recv, 	i64 * nb_recv_sz,
@@ -69,6 +74,9 @@ extern "C"
 	
 	void fmm_gaspi_init_handler_();
 	void fmm_gaspi_destroy_handler_();
+	
+	// debug tools
+	void fmm_dump_(complex * tab);
 
 }
 
