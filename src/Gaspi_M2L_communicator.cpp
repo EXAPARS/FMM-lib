@@ -34,24 +34,26 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 
 void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce)
 {
-	// create Gaspi segments
+	// v1  use Fortran arrays
 	SUCCESS_OR_DIE(
-		gaspi_segment_create(
+		gaspi_segment_use(
 			_seg_ff_allreduce_id,
+			ff,
 			nbEltsToReduce*sizeof(complex),
 			GASPI_GROUP_ALL,
 			GASPI_BLOCK, 
-			GASPI_ALLOC_DEFAULT
+			0
 		)
 	);
 	
 	SUCCESS_OR_DIE(
-		gaspi_segment_create(
+		gaspi_segment_use(
 			_seg_ne_allreduce_id,
+			ne,
 			nbEltsToReduce*sizeof(complex),
 			GASPI_GROUP_ALL,
 			GASPI_BLOCK, 
-			GASPI_ALLOC_DEFAULT
+			0
 		)
 	);
 	
@@ -414,13 +416,6 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 {
 	double t_begin, t_end;
 
-	// init ff and ne segments
-	t_begin = MPI_Wtime();
-	initAllReduceBuffers(ff, ne);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_write_reduce_sendSegment", t_end - t_begin);
-	
-
 	/** gestion de la queue **/
 	t_begin = MPI_Wtime();
     int nbQueues = 1;
@@ -486,22 +481,24 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
     // write its own data into the result !
 	t_begin = MPI_Wtime();    
     int nbElts = _seg_reduce_size / sizeof(complex);
-	cilk_for (int i=0; i<nbElts; i++)
+	
+	#pragma omp parallel for
+	for (int i=0; i<nbElts; i++)
 	{   
-		ne[i] = _reduceFF[i];
+		_reduceNE[i] = _reduceFF[i];
 	}
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_REDUCE_write_back_ne", t_end - t_begin);
 
 	 
 	// wait to receive all messages from the others
-	int recvCpt = 0;
 	gaspi_notification_id_t new_notif_id;
 	gaspi_notification_t new_notif_val;
     int sender;
     double t_begin_loop, t_end_loop;
 	
-	while (recvCpt < (_wsize-1))
+	//#pragma omp parallel for private(new_notif_id, new_notif_val, sender)
+	for(int i=0; i< (_wsize-1); i++)
 	{
 		//methode 1 - avec GASPI_BLOCK
 		while(1)
@@ -510,8 +507,8 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 			SUCCESS_OR_DIE(
 				gaspi_notify_waitsome(
 					_seg_globalRecvBuffer_id,
-					notif_offset,						// surveille les notifications depuis offset _wsize
-					_wsize,						// en surveille wsize
+					notif_offset,			// surveille les notifications depuis offset _wsize
+					_wsize,					// en surveille wsize
 					&new_notif_id,
 					GASPI_BLOCK
 				)
@@ -540,17 +537,17 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 		t_begin_loop = MPI_Wtime();
 	    if (new_notif_val == ALLREDUCE)
 	    {
-	        // update counter
-		    recvCpt++;
-		
 		    // update the far field array		    		     
             int offset = nbElts * sender;
-	        cilk_for (int i=0; i<nbElts; i++)
+            
+            #pragma omp parallel for
+	        for (int j=0; j<nbElts; j++)
 	        {   
-				ne[i] = ne[i] + _globalRecvBuffer[offset + i];
+				_reduceNE[j] = _reduceNE[j] + _globalRecvBuffer[offset + j];
+				//_reduceNE[0:nbElts-1] = _reduceNE[0:nbElts-1] + _globalRecvBuffer[offset: offset + nbElts-1];
 	        }
         }	
-        t_end_loop = MPI_Wtime();
+		t_end_loop = MPI_Wtime();
 		add_time_sec("GASPI_REDUCE_write_back_ne", t_end_loop - t_begin_loop);
 	}        
 }	
@@ -739,6 +736,7 @@ void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm,
 			
 			// update far fields
 			int pp = fniv[k+1 + indexToC]+(endlev[k + indexToC]-p)*nst[k + indexToC]*nsp[k + indexToC];
+			
 			for (int st=0; st<nst[k + indexToC]; st++)
 			{
 				for (int sp=0; sp<nsp[k + indexToC]; sp++)

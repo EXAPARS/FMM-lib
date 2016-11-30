@@ -200,7 +200,6 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 	add_time_sec("GASPI_allReduce", t_end - t_begin);
 	
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	//dumpBuffer(rank, ne, 10, "c", "ne after reduce : ");
 	
 }
 
@@ -228,7 +227,7 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 								frecv, recv, fsend, send,  nst, nsp, fniv, codech, bufsave, ff);
 								
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_func_echanges", t_end - t_begin);
+	add_time_sec("GASPI_sendRecv", t_end - t_begin);
 
 	// debug
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);

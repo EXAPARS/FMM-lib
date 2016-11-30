@@ -51,8 +51,9 @@ set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
 
 
 # set compile FLAGS
-set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -lcilkrts")
-set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -lcilkrts")
+set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
+set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
+
 
 # set library
 add_library (
