@@ -20,6 +20,7 @@
 #define GASPI_M2L_COMMUNICATOR
 
 #include "GASPI.h"
+#include "Gaspi_tools.hpp"
 #include "mpi.h"
 #include "types.hpp"
 #include "Complex.hpp"
@@ -40,8 +41,6 @@ using namespace std;
  *  remote recv buffer adresses : where to write
  *  data to send adresses : what to write
  */
-
-
 
 class Gaspi_m2l_communicator
 {	
@@ -65,6 +64,7 @@ public:
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
+	int _nbEltsToReduce;
 
 	// segments Ids
     gaspi_segment_id_t _seg_globalRecvBuffer_id; //	7 global Receive Buffer 
@@ -108,7 +108,6 @@ public:
 		i64 * codech, i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv, complex * ff);
 	void initAllReduceBuffers(complex * ff, complex * ne);
 
-	
 	void updateFarFields(int src, int levcom, int nivterm, i64 * endlev, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, complex * ff);
 };
 

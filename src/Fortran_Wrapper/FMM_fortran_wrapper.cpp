@@ -34,6 +34,7 @@ using namespace std;
 // Global variables
 static vec3D * elements = nullptr;
 static Gaspi_m2l_communicator * gCommM2L = nullptr;
+static Gaspi_unknowns_communicator * gCommUNK = nullptr;
 
 
 /**
@@ -167,11 +168,8 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 	int * counters = new int[size + 1]();
 }
 
-void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
-							i64 * recvnode, i64 * recvnode_sz, 
-							i64 * sendnode, i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz)
+
+void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
 {
 	// Passage en Gaspi
 	double t_begin, t_end;
@@ -179,6 +177,31 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
     MPI_Barrier(MPI_COMM_WORLD);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+	
+	// First call : Class instantiation, allocations and Gaspi segment creation
+	if (! gCommUNK)
+	{	
+		t_begin = MPI_Wtime();
+		gCommUNK = new Gaspi_unknowns_communicator(xtmp, xtmp2, (int) (*size));
+		t_end = MPI_Wtime();
+		add_time_sec("GASPI_UNK_init_class_and_create_segments", t_end - t_begin);
+	}
+	
+	// run broadcast
+	t_begin = MPI_Wtime();
+	gCommUNK->runBroadcastUnknowns();
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_Broadcast", t_end - t_begin);
+}
+
+void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
+							i64 * recvnode, i64 * recvnode_sz, 
+							i64 * sendnode, i64 * sendnode_sz,
+							i64 * nb_recv, 	i64 * nb_recv_sz,
+							i64 * nb_send, 	i64 * nb_send_sz)
+{
+	double t_begin, t_end;
+	//cout << "WRAPPER : nbElements to REDUCE : " << (*size) << endl;
 	// First call : Class instantiation, allocations and Gaspi segment creation
 	if (! gCommM2L)
 	{	
@@ -191,16 +214,14 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 							  ff, ne, (int)(*size),
 							  gCommM2L);
 		t_end = MPI_Wtime();
-		add_time_sec("GASPI_init_class_and_create_segments", t_end - t_begin);
+		add_time_sec("GASPI_M2L_init_class_and_create_segments", t_end - t_begin);
 	}
 	
+	// run allReduce
 	t_begin = MPI_Wtime();
 	gCommM2L->runM2LallReduce(ff, ne);
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_allReduce", t_end - t_begin);
-	
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
+	add_time_sec("GASPI_allReduce_ff", t_end - t_begin);
 }
 
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
@@ -228,17 +249,25 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 								
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_sendRecv", t_end - t_begin);
+}
 
-	// debug
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	//dumpBuffer(rank, ff, 10, "c", "ff after send/recv : ");
+void fmm_handle_unknowns_allreduce_()
+{
+	double t_begin, t_end;
+	
+	// run allreduce
+	t_begin = MPI_Wtime();	
+	gCommUNK->runAllReduceUnknowns();
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_allReduce_unk", t_end - t_begin);
 
 	// Rend la main au MPI
 	t_begin = MPI_Wtime();
     SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);    
+	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
 }
+
 
 void fmm_gaspi_init_()
 {

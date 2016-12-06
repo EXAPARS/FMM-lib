@@ -19,6 +19,7 @@
 #ifndef LB_MORTON_ASYNC_GASPI_HPP
 #define LB_MORTON_ASYNC_GASPI_HPP
 
+#include "Gaspi_tools.hpp"
 #include "Node.hpp"
 #include "LBMortonBase.hpp"
 

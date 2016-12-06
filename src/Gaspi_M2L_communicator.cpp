@@ -11,6 +11,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	// update class attributes
 	gaspi_proc_rank(&_rank);
 	gaspi_proc_num(&_wsize);
+	_nbEltsToReduce = nbEltsToReduce;
 		
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
@@ -19,8 +20,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_seg_globalSendBuffer_id 	    = 18; // Send Buffer 
     _seg_remoteBufferIndexes_id     = 19; // Index where to write on other ranks	
     _seg_globalRecvBufIdxPerRank_id = 20; // Index in global recv buffer, per RANK
-										  // temporary, only for initialization computations
-										  
+										  // temporary, only for initialization computations 
 	// allocate array
 	_sendBufferIndexes = new int[_wsize]();
 	
@@ -30,11 +30,14 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	create_remoteBufferIndexes(recvnode, recvnode_sz, nb_recv);
 	create_globalSendBuffer(nb_send, nb_send_sz);
 	init_sendBufferIndexes(sendnode, sendnode_sz, nb_send);
+	
+	/*if (_rank == 0)
+		print_gaspi_config();*/
 }
 
 void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce)
 {
-	// v1  use Fortran arrays
+	// use Fortran arrays for FF and NE
 	SUCCESS_OR_DIE(
 		gaspi_segment_use(
 			_seg_ff_allreduce_id,
@@ -67,7 +70,7 @@ void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne,
 	
 	// class size attributes
 	_seg_reduce_size = nbEltsToReduce * sizeof(complex);
-	_seg_globalRecvBuffer_size = _seg_reduce_size * _wsize;
+	_seg_globalRecvBuffer_size = nbEltsToReduce * sizeof(complex) * _wsize;
 }
 
 void Gaspi_m2l_communicator::create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz)
@@ -76,7 +79,7 @@ void Gaspi_m2l_communicator::create_globalRecvBuffer(i64 * nb_recv, int nb_recv_
  	SUCCESS_OR_DIE(
 		gaspi_segment_create(
 			_seg_globalRecvBuffer_id,
-			_seg_globalRecvBuffer_size,
+			/*_seg_globalRecvBuffer_size*/_nbEltsToReduce * sizeof(complex) * _wsize,
 			GASPI_GROUP_ALL,
 			GASPI_BLOCK, 
 			GASPI_ALLOC_DEFAULT
@@ -354,7 +357,9 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 void Gaspi_m2l_communicator::initAllReduceBuffers(
 	complex * ff, complex * ne)
 {
-	int nbElts = _seg_reduce_size / sizeof(complex);
+	//int nbElts = _seg_reduce_size / sizeof(complex);
+	int nbElts = _nbEltsToReduce;
+	
 	// ff
 	for (int i=0; i<nbElts; i++)
 		_reduceFF[i] = ff[i];
@@ -448,14 +453,14 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
     gaspi_offset_t remote_offset;
    	gaspi_notification_id_t notif_offset = _wsize;    
     gaspi_notification_id_t notifyID = notif_offset + _rank;
-    gaspi_size_t qty= _seg_reduce_size;
+    gaspi_size_t qty= _nbEltsToReduce * sizeof(complex); //_seg_reduce_size;
 	
 	// send infos    
     for (int i=0; i<_wsize; i++)
     {
 		if ( i != _rank ) // if not current rank
 		{
-			remote_offset = _rank * _seg_reduce_size;
+			remote_offset = _rank * _nbEltsToReduce * sizeof(complex); //_seg_reduce_size;
 			
 			SUCCESS_OR_DIE(
 				gaspi_write_notify( 
@@ -480,10 +485,11 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
     
     // write its own data into the result !
 	t_begin = MPI_Wtime();    
-    int nbElts = _seg_reduce_size / sizeof(complex);
+    int nbElts = _nbEltsToReduce; //_seg_reduce_size / sizeof(complex);
 	
-	#pragma omp parallel for
-	for (int i=0; i<nbElts; i++)
+	int i;
+	#pragma omp parallel for default(shared) private(i)
+	for (i=0; i<nbElts; i++)
 	{   
 		_reduceNE[i] = _reduceFF[i];
 	}
@@ -497,13 +503,14 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
     int sender;
     double t_begin_loop, t_end_loop;
 	
-	//#pragma omp parallel for private(new_notif_id, new_notif_val, sender)
+	int j, offset;
+	//#pragma omp parallel for default (shared) private(i, j, new_notif_id, new_notif_val, sender, offset)
 	for(int i=0; i< (_wsize-1); i++)
 	{
 		//methode 1 - avec GASPI_BLOCK
 		while(1)
 		{
-			t_begin_loop = MPI_Wtime();
+			//t_begin_loop = MPI_Wtime();
 			SUCCESS_OR_DIE(
 				gaspi_notify_waitsome(
 					_seg_globalRecvBuffer_id,
@@ -513,9 +520,9 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 					GASPI_BLOCK
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_REDUCE_notify_waitsome", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
+			//t_end_loop = MPI_Wtime();
+			//add_time_sec("GASPI_REDUCE_notify_waitsome", t_end_loop - t_begin_loop);
+			//t_begin_loop = MPI_Wtime();
 			
 			SUCCESS_OR_DIE(
 				gaspi_notify_reset(
@@ -524,9 +531,9 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 					&new_notif_val
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_REDUCE_notify_reset", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
+			//t_end_loop = MPI_Wtime();
+			//add_time_sec("GASPI_REDUCE_notify_reset", t_end_loop - t_begin_loop);
+			//t_begin_loop = MPI_Wtime();
 			
 			if (new_notif_val) 
 				break;
@@ -534,22 +541,21 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 		
 		sender = new_notif_id - notif_offset;
 		// test the notification value and update counter
-		t_begin_loop = MPI_Wtime();
+		//t_begin_loop = MPI_Wtime();
 	    if (new_notif_val == ALLREDUCE)
 	    {
 		    // update the far field array		    		     
-            int offset = nbElts * sender;
+            offset = nbElts * sender;
             
-            #pragma omp parallel for
-	        for (int j=0; j<nbElts; j++)
+            //#pragma omp parallel for default(shared) private(j)
+	        for (j=0; j<nbElts; j++)
 	        {   
 				_reduceNE[j] = _reduceNE[j] + _globalRecvBuffer[offset + j];
-				//_reduceNE[0:nbElts-1] = _reduceNE[0:nbElts-1] + _globalRecvBuffer[offset: offset + nbElts-1];
 	        }
         }	
-		t_end_loop = MPI_Wtime();
-		add_time_sec("GASPI_REDUCE_write_back_ne", t_end_loop - t_begin_loop);
-	}        
+		//t_end_loop = MPI_Wtime();
+		//add_time_sec("GASPI_REDUCE_write_back_ne", t_end_loop - t_begin_loop);
+	}
 }	
 	
 	
@@ -626,7 +632,7 @@ void Gaspi_m2l_communicator::runM2LCommunications(i64 * sendnode, int sendnode_s
 					)
 				);
 				
-				register_write(_rank, i, qty);
+				//register_write(_rank, i, qty);
 			}
 			else // no data to send, notify anyway
 			{

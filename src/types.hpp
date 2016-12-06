@@ -72,24 +72,6 @@ typedef int64_t i64;
 #define PARTICLES 8
 #define NO_PARTICLES 9
 
-/**
- * MACRO GASPI
- **/
- 
-#define SUCCESS_OR_DIE(f...)\
-do\
-{\
-	const gaspi_return_t r = f;\
-	if (r != GASPI_SUCCESS)\
-	{\
-        printf("SUCCESS_OR_DIE failed at [%s:%i]\n",__FILE__,__LINE__);\
-        gaspi_rank_t rank;\
-        gaspi_proc_rank(&rank);\
-		printf ("Error rank %d: '%s' [%s:%i]: %i\n",rank, #f, __FILE__, __LINE__, r);\
-		exit (EXIT_FAILURE);\
-	}\
-} while (0)
-
 #define ASSERT(x...)                                                   		 \
 do{\
 if (!(x))                                                          		   \

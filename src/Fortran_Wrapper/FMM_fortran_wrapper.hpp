@@ -21,6 +21,7 @@
 
 #include "mpi.h"
 #include "GASPI.h"
+#include "Gaspi_tools.hpp"
 
 #include "types.hpp"
 #include "fmm_tools.hpp"
@@ -34,6 +35,8 @@
 #include "LBMortonSyncMPI.hpp"
 #include "LBHistApprox.hpp"
 #include "Gaspi_M2L_communicator.hpp"
+#include "Gaspi_UNK_communicator.hpp"
+
 
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 
@@ -50,6 +53,8 @@ extern "C"
 	// Gaspi
 	void fmm_gaspi_init_();
 	void fmm_gaspi_finalize_();
+	void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size);
+	void fmm_handle_unknowns_allreduce_();
 	void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
 							i64 * recvnode, i64 * recvnode_sz, 
 							i64 * sendnode, i64 * sendnode_sz,
