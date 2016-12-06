@@ -82,229 +82,25 @@ Gaspi_unknowns_communicator::Gaspi_unknowns_communicator(complex * xtmp, complex
 
 void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 {
-	// Gaspi queue
 	int nbQueues = 1;
-	/*flush_queues(nbQueues);*/
-
+	int offsetMultiple = 4;
+	int localOffset = 0;
 	double t_begin, t_end;
 
-	// Gaspi broadcast to global buffer
-	broadcast_to_global_buffer(nbQueues, 0, 4, _nbUnknowns, sizeof(complex), _rank, _wsize, _seg_loc_unk_tmp_id, _seg_glob_unk_id, ALLREDUCE_UNKNOWNS, "GASPI_REDUCE_UNK_write_notify");
+	// SEND
+	broadcast_to_global_buffer(
+		nbQueues, localOffset, offsetMultiple, _nbUnknowns, sizeof(complex), 
+		_rank, _wsize, _seg_loc_unk_tmp_id, _seg_glob_unk_id, ALLREDUCE_UNKNOWNS, 
+		"GASPI_REDUCE_UNK_write_notify");
 
-/*
-	 send data 
-	int nbQueues = 1;
-	gaspi_queue_id_t queue = 0;
-	gaspi_offset_t local_offset = 0;
-    gaspi_offset_t remote_offset;
-   	gaspi_notification_id_t notif_offset = _wsize * 4;    
-    gaspi_notification_id_t notifyID = notif_offset + _rank;
-    gaspi_size_t qty= _nbUnknowns * sizeof(complex);
-    
-    for (int i=0; i<_wsize; i++)
-    {
-		if ( i != _rank ) // if not current rank
-		{
-			remote_offset = _rank * qty;
-			
-			SUCCESS_OR_DIE(
-				gaspi_write_notify( 
-					_seg_loc_unk_tmp_id,  				// local seg ID
-					local_offset,						// local offset
-					i,									// receiver rank
-					_seg_glob_unk_id,					// remote seg ID
-					remote_offset,						// remote offset
-					qty,								// size of data to write
-					notifyID,							// remote notif ID
-					ALLREDUCE_UNKNOWNS,					// value of the notif to write
-					queue,								// queue
-					GASPI_BLOCK							// Gaspi block
-				)
-			);
-		}		
-		queue=(queue+1)%nbQueues;
-	}
-	t_end = MPI_Wtime();
-	
-	add_time_sec("GASPI_REDUCE_UNK_write_notify", t_end - t_begin);
-*/	
-
-   	gaspi_notification_id_t notif_offset = _wsize * 4;   
-    
-	// receptions
-	 // write its own data into the result !
-	t_begin = MPI_Wtime();    
-	
-	int i;
-	#pragma omp parallel for default(shared) private(i)
-	for (i=0; i<_nbUnknowns; i++)
-	{   
-		_unknowns[i] = _unknownsTmp[i];
-	}
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_UNK_write_back_unk", t_end - t_begin);
-
-	// wait to receive all messages from the others
-	gaspi_notification_id_t new_notif_id;
-	gaspi_notification_t new_notif_val;
-    int sender;
-    double t_begin_loop, t_end_loop;
-    
-    for(int i=0; i< (_wsize-1); i++)
-	{
-		//methode 1 - avec GASPI_BLOCK
-		while(1)
-		{
-			t_begin_loop = MPI_Wtime();
-			SUCCESS_OR_DIE(
-				gaspi_notify_waitsome(
-					_seg_glob_unk_id,
-					notif_offset,			// surveille les notifications depuis offset _wsize
-					_wsize,					// en surveille wsize
-					&new_notif_id,
-					GASPI_BLOCK
-				)
-			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_REDUCE_UNK_notify_waitsome", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
-			
-			SUCCESS_OR_DIE(
-				gaspi_notify_reset(
-					_seg_glob_unk_id, 
-					new_notif_id, 
-					&new_notif_val
-				)
-			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_REDUCE_UNK_notify_reset", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
-			
-			if (new_notif_val) 
-				break;
-		}
-		
-		sender = new_notif_id - notif_offset;
-		
-		// test the notification value and update counter
-		t_begin_loop = MPI_Wtime();
-	    if (new_notif_val == ALLREDUCE_UNKNOWNS)
-	    {
-		    // update the far field array		    		     
-            int offset = _nbUnknowns * sender;
-            int j;
-            #pragma omp parallel for default(shared) private (j)
-	        for (j=0; j<_nbUnknowns; j++)
-	        {   
-				_unknowns[j] = _unknowns[j] + _globalUnknowns[offset + j];
-	        }
-        }	
-		t_end_loop = MPI_Wtime();
-		add_time_sec("GASPI_REDUCE_UNK_write_back_unk", t_end_loop - t_begin_loop);
-	} 
+	// RECV and reduce on _unknowns array
+	copy_local_data<complex>(_unknowns, _unknownsTmp, 0, _nbUnknowns, "GASPI_REDUCE_UNK");
+	receive_allReduce(offsetMultiple, "GASPI_REDUCE_UNK", _nbUnknowns, _wsize, _seg_glob_unk_id, ALLREDUCE_UNKNOWNS, _unknowns, _globalUnknowns);
 }
 
 void Gaspi_unknowns_communicator::runBroadcastUnknowns()
 {
-	double t_begin, t_end;
-	
-	/** avec gestion de la queue **/
-    gaspi_queue_id_t queue=0;
-    int nbQueues = 1;        
-	t_begin = MPI_Wtime();
-	gaspi_number_t queueSizeMax;
-	gaspi_number_t queueSize;
-	
-	SUCCESS_OR_DIE (gaspi_queue_size_max (&queueSizeMax));
-	
-	for(int i=0; i<nbQueues; i++)
-	{
-		queue=i;
-		SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
-		if (queueSize > queueSizeMax) 
-		{
-			cerr << "Rank " << _rank << " has exceeded its queue capacity." << endl;
-			exit(1);
-		}
-		else if (queueSize >= queueSizeMax/2) 
-		{
-			SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
-		}
-	}
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_BROADCAST_flush_queue", t_end - t_begin);
-	t_begin = MPI_Wtime();
-	queue = 0;
-	
-    // send infos  
-    gaspi_offset_t local_offset = 0;
-    gaspi_offset_t remote_offset = 0;
-   	gaspi_notification_id_t notif_offset = _wsize * 3;    
-    gaspi_notification_id_t notifyID = notif_offset + _rank;
-    gaspi_size_t qty = _nbUnknowns * sizeof(complex);  
-    
-    if (_rank == 0)
-    {
-		for (int i=1; i<_wsize; i++) // broadcast to others only
-		{
-			SUCCESS_OR_DIE(
-				gaspi_write_notify( 
-					_seg_loc_unk_id,					// local seg ID
-					local_offset,						// local offset
-					i,									// receiver rank
-					_seg_loc_unk_id,					// remote seg ID
-					remote_offset,						// remote offset
-					qty,								// size of data to write
-					notifyID,							// remote notif ID
-					BROADCAST_UNKNOWNS,					// value of the notif to write
-					queue,								// queue
-					GASPI_BLOCK							// Gaspi block
-				)
-			);
-		}
-		queue=(queue+1)%nbQueues;
-	}
-
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_BROADCAST_write_notify", t_end - t_begin);
-	t_begin = MPI_Wtime();
-
-	// wait to receive the broadcasted unknowns array
-	if (_rank != 0)
-	{
-		gaspi_notification_id_t new_notif_id;
-		gaspi_notification_t new_notif_val;
-		double t_begin_loop, t_end_loop;
-
-		//methode 1 - avec GASPI_BLOCK
-		while(1)
-		{
-			t_begin_loop = MPI_Wtime();
-			SUCCESS_OR_DIE(
-				gaspi_notify_waitsome(
-					_seg_loc_unk_id,
-					notif_offset,				// surveille les notifications depuis 0
-					1,							// en surveille wsize
-					&new_notif_id,
-					GASPI_BLOCK
-				)
-			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_BROADCAST_notify_waitsome", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
-			
-			SUCCESS_OR_DIE(
-				gaspi_notify_reset(
-					_seg_loc_unk_id, 
-					new_notif_id, 
-					&new_notif_val
-				)
-			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_BROADCAST_notify_reset", t_end_loop - t_begin_loop);
-			
-			if (new_notif_val == BROADCAST_UNKNOWNS) 
-				break;
-		}
-	}
+	int nbQueues = 1;
+	int offsetMultiple = 3;
+	broadcast_buffer(nbQueues, offsetMultiple, _nbUnknowns, sizeof(complex), _rank, _wsize, _seg_loc_unk_id, BROADCAST_UNKNOWNS);
 }

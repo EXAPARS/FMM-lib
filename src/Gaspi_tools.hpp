@@ -22,13 +22,44 @@
 #include "mpi.h"
 #include "GASPI.h"
 #include <iostream>
+
+#include "Complex.hpp"
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/byteCounter.hpp"
 
 void flush_queues(int nbQueues);
 
+
+// allReduce
 void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultiple, int nbElts, int sizeOfElem,
 	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t srcSeg, gaspi_segment_id_t destSeg, int notifValue, string timingMsg);
+
+void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
+	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, int notifValue, complex * buffer, complex * globalBuffer);
+
+
+template <typename T>
+void copy_local_data(T * _unknowns, T * _unknownsTmp, int startIndex, int nbElts, string timingMsg)
+{
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+	
+	int i;
+	#pragma omp parallel for default(shared) private(i)
+	for (i=startIndex; i<nbElts; i++)
+	{   
+		_unknowns[i] = _unknownsTmp[i];
+	}
+	
+	t_end = MPI_Wtime();
+	add_time_sec(timingMsg + "_wb", t_end - t_begin);
+}
+
+
+// broadcast
+void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfElem,
+	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, int notifValue);
+
 
 #define SUCCESS_OR_DIE(f...)\
 do\

@@ -37,7 +37,7 @@ using namespace std;
 
 class Gaspi_unknowns_communicator
 {	
-private:
+public:
 	// segments sizes (in bytes for segment creation)
 	gaspi_size_t _seg_local_unk_size; 
 	gaspi_size_t _seg_global_unk_size; 
@@ -47,7 +47,6 @@ private:
 	gaspi_pointer_t _ptr_seg_loc_unk_tmp = nullptr;
     gaspi_pointer_t _ptr_seg_glob_unk = nullptr;
 
-public:
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
@@ -67,6 +66,7 @@ public:
 	Gaspi_unknowns_communicator(complex * xtmp, complex * xtmp2, int nbUnk);
 	void runBroadcastUnknowns();
 	void runAllReduceUnknowns();
+	void receive_and_update_allReduce();
 };
 
 
