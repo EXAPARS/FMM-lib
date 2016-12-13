@@ -191,7 +191,7 @@ void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
 	t_begin = MPI_Wtime();
 	gCommUNK->runBroadcastUnknowns();
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_Broadcast", t_end - t_begin);
+	add_time_sec("GASPI_broadcast", t_end - t_begin);
 }
 
 void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
@@ -224,6 +224,20 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 	add_time_sec("GASPI_allReduce_ff", t_end - t_begin);
 }
 
+void call init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
+									  i64 * sendnode, 	i64 * sendnode_sz,
+									  i64 * nb_recv, 	i64 * nb_recv_sz,
+									  i64 * nb_send, 	i64 * nb_send_sz,
+									  i64 * nivterm,	i64 * levcom,
+									  i64 * fniv, i64 * nst, i64 * nsp,
+									  complex * ff, 
+									  i64 * fsend, 		i64 * send,
+									  i64 * frecv,		i64 * recv,
+									  i64 * endlev,		i64 * codech)
+{
+	
+}
+
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 							 i64 * sendnode, 	i64 * sendnode_sz,
 							 i64 * nb_recv, 	i64 * nb_recv_sz,
@@ -240,6 +254,16 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 complex * bufsave)
 {
 	double t_begin, t_end;
+
+	// DEBUG
+	gaspi_rank_t _wsize;
+	gaspi_rank_t _rank;
+	gaspi_proc_rank(&_rank);
+	gaspi_proc_num(&_wsize);
+	
+	dumpBuffer(_rank, frecv, _wsize, "exchange_infos", "frecv");
+	dumpBuffer(_rank, recv,  100, "exchange_infos", "num");
+	
 	
 	// run M2L SEND/RECV 
 	t_begin = MPI_Wtime();

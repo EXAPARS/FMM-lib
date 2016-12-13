@@ -82,7 +82,7 @@ Gaspi_unknowns_communicator::Gaspi_unknowns_communicator(complex * xtmp, complex
 
 void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 {
-	int nbQueues = 1;
+	int nbQueues = 8;
 	int offsetMultiple = 4;
 	int localOffset = 0;
 	double t_begin, t_end;
@@ -100,7 +100,7 @@ void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 
 void Gaspi_unknowns_communicator::runBroadcastUnknowns()
 {
-	int nbQueues = 1;
+	int nbQueues = 8;
 	int offsetMultiple = 3;
 	broadcast_buffer(nbQueues, offsetMultiple, _nbUnknowns, sizeof(complex), _rank, _wsize, _seg_loc_unk_id, BROADCAST_UNKNOWNS);
 }

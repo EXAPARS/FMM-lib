@@ -229,7 +229,7 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 		    // update the far field array		    		     
             int offset = nbElts * sender;
             int j;
-           // #pragma omp parallel for default(shared) private (j)
+            //#pragma omp parallel for default(shared) private (j)
 	        for (j=0; j<nbElts; j++)
 	        {   
 				buffer[j] = buffer[j] + globalBuffer[offset + j];

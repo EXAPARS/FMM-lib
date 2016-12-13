@@ -44,7 +44,7 @@ using namespace std;
 
 class Gaspi_m2l_communicator
 {	
-private:
+public:
 	// segments sizes (in bytes for segment creation)
 	gaspi_size_t _seg_globalRecvBuffer_size; 
 	gaspi_size_t _seg_globalSendBuffer_size; 
@@ -60,7 +60,7 @@ private:
 	gaspi_pointer_t _ptr_seg_ff_allreduce = nullptr;
 	gaspi_pointer_t _ptr_seg_ne_allreduce = nullptr;
 
-public:
+
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;

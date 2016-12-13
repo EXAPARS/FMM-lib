@@ -53,8 +53,23 @@ extern "C"
 	// Gaspi
 	void fmm_gaspi_init_();
 	void fmm_gaspi_finalize_();
+	
+	// unknowns
 	void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size);
 	void fmm_handle_unknowns_allreduce_();
+	
+	// ff
+	void call init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
+										  i64 * sendnode, 	i64 * sendnode_sz,
+										  i64 * nb_recv, 	i64 * nb_recv_sz,
+										  i64 * nb_send, 	i64 * nb_send_sz,
+										  i64 * nivterm,	i64 * levcom,
+										  i64 * fniv, i64 * nst, i64 * nsp,
+										  complex * ff, 
+										  i64 * fsend, 		i64 * send,
+										  i64 * frecv,		i64 * recv,
+										  i64 * endlev,		i64 * codech) 
+		
 	void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
 							i64 * recvnode, i64 * recvnode_sz, 
 							i64 * sendnode, i64 * sendnode_sz,

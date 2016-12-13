@@ -299,12 +299,20 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 		
 		if (iDest > 0)
 		{
+			// pour toutes les cellules à échanger avec iDest
+			// de la dernière cellule à envoyer -> à la première
 			for (int j=fsend[iDest+1+indexToC]-1; j>=fsend[iDest+indexToC]; j--)
 			{
 				int jc = j + indexToC;
 				
+				// INFO NUMEROTATION DES CELLULES
+				if(_rank == 0 && iDest == 4)
+					printf("send cell %d\n", jc);
+				
 				bool todo = true;
 				int p;
+				
+				// l = numero de la cellule à envoyer
 				int l = send[jc];
 				if ((levcom<=3 || (levcom == 4 && nivterm>8))  && (l < endlev[levcom + indexToC]))
 					todo = false;
@@ -313,11 +321,13 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 					
 				if (todo)
 				{
-					// se place au bon niveau
+					// place k pour que k = niveau de la cellule à envoyer
 					while(l <= endlev[k-1 + indexToC])
 						k--;
 					
-					// cas 1
+					// cas 1 : 
+					// si l est commun à +ieurs noeuds
+					// communique les données sauvegardées dans BUFSAVE
 					if (codech[l + indexToC] > 1)
 					{
 						p=codech[l + indexToC]-2;
@@ -334,7 +344,10 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 					// cas 2
 					else
 					{
+						// calcule le bon index pour p (= offset)
 						p=fniv[k+1 + indexToC]+(endlev[k + indexToC]-l)*nst[k + indexToC]*nsp[k + indexToC];
+						
+						// communique  nst(niveau) x nsp(niveau) complexes depuis FF
 						for (int st=0; st<nst[k + indexToC]; st++)
 						{
 							for (int sp=0; sp<nsp[k + indexToC];  sp++)
@@ -419,143 +432,21 @@ void Gaspi_m2l_communicator::init_sendBufferIndexes(i64 * sendnode, int sendnode
 
 void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 {
-	double t_begin, t_end;
-
-	/** gestion de la queue **/
-	t_begin = MPI_Wtime();
-    int nbQueues = 1;
-    gaspi_queue_id_t queue=0;       
-	gaspi_number_t queueSizeMax;
-	gaspi_number_t queueSize;
+	// test à l'arrache réutilisation de code
+	int nbQueues = 8;
+	int localOffset = 0;
+	int offsetMultiple = 1;
+	int nbElts = _nbEltsToReduce;
 	
-	SUCCESS_OR_DIE (gaspi_queue_size_max (&queueSizeMax));	
-	for(int i=0; i<nbQueues; i++)
-	{
-		queue=i;
-		SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
-		if (queueSize > queueSizeMax) 
-		{
-			cerr << "Rank " << _rank << " has exceeded its queue capacity." << endl;
-			exit(1);
-		}
-		else if (queueSize >= queueSizeMax/2) 
-		{
-			SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
-		}
-	}
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_flush_queue", t_end - t_begin);
-	t_begin = MPI_Wtime();
-	queue = 0;
+	// SEND
+	broadcast_to_global_buffer(
+		nbQueues, localOffset, offsetMultiple, nbElts, sizeof(complex), 
+		_rank, _wsize, _seg_ff_allreduce_id, _seg_globalRecvBuffer_id, ALLREDUCE, 
+		"GASPI_REDUCE_FF_write_notify");
 
-	/** send data **/
-	gaspi_offset_t local_offset=0;
-    gaspi_offset_t remote_offset;
-   	gaspi_notification_id_t notif_offset = _wsize;    
-    gaspi_notification_id_t notifyID = notif_offset + _rank;
-    gaspi_size_t qty= _nbEltsToReduce * sizeof(complex); //_seg_reduce_size;
-	
-	// send infos    
-    for (int i=0; i<_wsize; i++)
-    {
-		if ( i != _rank ) // if not current rank
-		{
-			remote_offset = _rank * _nbEltsToReduce * sizeof(complex); //_seg_reduce_size;
-			
-			SUCCESS_OR_DIE(
-				gaspi_write_notify( 
-					_seg_ff_allreduce_id,  			// local seg ID
-					local_offset,						// local offset
-					i,									// receiver rank
-					_seg_globalRecvBuffer_id,			// remote seg ID
-					remote_offset,						// remote offset
-					qty,								// size of data to write
-					notifyID,							// remote notif ID
-					ALLREDUCE,							// value of the notif to write
-					queue,								// queue
-					GASPI_BLOCK							// Gaspi block
-				)
-			);
-		}	
-		queue=(queue+1)%nbQueues;
-	}
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_SEND_write_notify", t_end - t_begin);
-
-    
-    // write its own data into the result !
-	t_begin = MPI_Wtime();    
-    int nbElts = _nbEltsToReduce; //_seg_reduce_size / sizeof(complex);
-	
-	int i;
-	#pragma omp parallel for default(shared) private(i)
-	for (i=0; i<nbElts; i++)
-	{   
-		_reduceNE[i] = _reduceFF[i];
-	}
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_write_back_ne", t_end - t_begin);
-
-	 
-	// wait to receive all messages from the others
-	gaspi_notification_id_t new_notif_id;
-	gaspi_notification_t new_notif_val;
-    int sender;
-    double t_begin_loop, t_end_loop;
-	
-	int j, offset;
-	//#pragma omp parallel for default (shared) private(i, j, new_notif_id, new_notif_val, sender, offset)
-	for(int i=0; i< (_wsize-1); i++)
-	{
-		//methode 1 - avec GASPI_BLOCK
-		while(1)
-		{
-			//t_begin_loop = MPI_Wtime();
-			SUCCESS_OR_DIE(
-				gaspi_notify_waitsome(
-					_seg_globalRecvBuffer_id,
-					notif_offset,			// surveille les notifications depuis offset _wsize
-					_wsize,					// en surveille wsize
-					&new_notif_id,
-					GASPI_BLOCK
-				)
-			);
-			//t_end_loop = MPI_Wtime();
-			//add_time_sec("GASPI_REDUCE_notify_waitsome", t_end_loop - t_begin_loop);
-			//t_begin_loop = MPI_Wtime();
-			
-			SUCCESS_OR_DIE(
-				gaspi_notify_reset(
-					_seg_globalRecvBuffer_id, 
-					new_notif_id, 
-					&new_notif_val
-				)
-			);
-			//t_end_loop = MPI_Wtime();
-			//add_time_sec("GASPI_REDUCE_notify_reset", t_end_loop - t_begin_loop);
-			//t_begin_loop = MPI_Wtime();
-			
-			if (new_notif_val) 
-				break;
-		}
-		
-		sender = new_notif_id - notif_offset;
-		// test the notification value and update counter
-		//t_begin_loop = MPI_Wtime();
-	    if (new_notif_val == ALLREDUCE)
-	    {
-		    // update the far field array		    		     
-            offset = nbElts * sender;
-            
-            //#pragma omp parallel for default(shared) private(j)
-	        for (j=0; j<nbElts; j++)
-	        {   
-				_reduceNE[j] = _reduceNE[j] + _globalRecvBuffer[offset + j];
-	        }
-        }	
-		//t_end_loop = MPI_Wtime();
-		//add_time_sec("GASPI_REDUCE_write_back_ne", t_end_loop - t_begin_loop);
-	}
+	// RECV and reduce on _unknowns array
+	copy_local_data<complex>(_reduceNE, _reduceFF, 0, nbElts, "GASPI_REDUCE_FF");
+	receive_allReduce(offsetMultiple, "GASPI_REDUCE_FF", nbElts, _wsize, _seg_globalRecvBuffer_id, ALLREDUCE, _reduceNE, _globalRecvBuffer);
 }	
 	
 	
@@ -716,11 +607,19 @@ void Gaspi_m2l_communicator::runM2LCommunications(i64 * sendnode, int sendnode_s
 
 void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm, 
 	i64 * endlev, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, complex * ff)
-{
+{		
 	int indexToC = -1;
 	int k = nivterm;
-	
 	int srcF=src+1;
+	
+	// DEBUG
+	//int nbEltsToRecv = 
+	dumpBuffer(_rank, frecv, _wsize, "exchange_infos", "frecv");
+	/*for (int i=0; i<_wsize; i++)
+	{
+		dumpBuffer(_rank, recv, 
+	}*/
+	
 	int qp = _globalRecvBufIdxPerRank[src]-1; // se mettre 1 case avant l'index à lire
 	
 	for (int j=frecv[srcF+1+indexToC]-1; j>=frecv[srcF+indexToC]; j--)
@@ -728,6 +627,11 @@ void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm,
 		int jc = j + indexToC;
 		int p = recv[jc];
 		bool todo = true;
+		
+		// INFO NUMEROTATION DES CELLULES
+		if(_rank == 3 && src == 0)
+			printf("recv cell %d\n", jc);
+
 		
 		if ((levcom<=3 || (levcom == 4 && nivterm>8))  && (p < endlev[levcom + indexToC]))
 			todo = false;
