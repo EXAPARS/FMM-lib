@@ -90,9 +90,20 @@ public:
     i64 * _fniv = nullptr;			// pour chaque niveau, @ dans FF du dernier terme de ce niveau
     i64 * _fsend = nullptr;			// pour chaque rank, @ dans send de la 1ere cellule à échanger
     i64 * _send = nullptr;			// liste des cellules à echanger
+    i64 * _frecv = nullptr;
+    i64 * _recv = nullptr;
     i64 * _nst = nullptr;			// nb d'angles en theta	
     i64 * _nsp = nullptr;			// nb d'angles en phi
+    i64 * _endlev = nullptr;
 	i64 * _codech = nullptr;		// 	
+	i64 * _nb_send = nullptr;
+	i64 * _nb_recv = nullptr;
+	i64 * _sendnode = nullptr;
+	i64 * _recvnode = nullptr;
+	int _nb_send_sz;
+	int _nb_recv_sz;
+	int _sendnode_sz;
+	int _recvnode_sz;
     
 
 public:
@@ -103,7 +114,7 @@ public:
 		i64 * recvnode, int recvnode_sz,
 		int nivterm, int levcom,
 		complex * ff, complex * ne, int nbEltsToReduce,
-		i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech);
+		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech);
 
 	void create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce);
 	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
@@ -113,8 +124,8 @@ public:
 
 
 	void runM2LallReduce(complex * ff, complex * ne);
-	void runM2LCommunications (i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
-		i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, complex * bufsave, complex * ff);
+	void runM2LCommunications (/*i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
+		i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, */complex * bufsave, complex * ff);
 
 	void initGlobalSendSegment(i64 * sendnode, int sendnode_sz, i64 * nb_send, int nivterm, int levcom, i64 * fsend, i64 * send, i64 * endlev,
 		i64 * codech, i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv, complex * ff);
@@ -131,7 +142,7 @@ void construct_m2l_communicator(i64 * nb_send, int nb_send_sz,
 							 i64 * recvnode, int recvnode_sz,
 							 int nivterm, int levcom,
 							 complex * ff, complex * ne, int allreduce_sz,
-							 i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech,
+							 i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, 
                              Gaspi_m2l_communicator *& gCommM2L);
 
 

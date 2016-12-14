@@ -8,7 +8,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	i64 * recvnode, int recvnode_sz,
 	int nivterm, int levcom,
 	complex * ff, complex * ne, int nbEltsToReduce,
-	i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech)
+	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech)
 {
 	// update class attributes
 	gaspi_proc_rank(&_rank);
@@ -19,9 +19,22 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_fniv = fniv;
     _fsend = fsend;
     _send = send;
+    _frecv = frecv;
+    _recv = recv;
     _nst = nst;
     _nsp = nsp;
 	_codech = codech;
+	_nb_send = nb_send;
+	_nb_send_sz = nb_send_sz;
+	_nb_recv = nb_recv;
+	_nb_recv_sz = nb_recv_sz;
+	_sendnode = sendnode;
+	_sendnode_sz = sendnode_sz;
+	_recvnode = recvnode;
+	_recvnode_sz = recvnode_sz;
+	_endlev = endlev;
+	
+	
 
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
@@ -454,14 +467,14 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 }	
 	
 	
-void Gaspi_m2l_communicator::runM2LCommunications(i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
-	i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, complex * bufsave, complex * ff)
+void Gaspi_m2l_communicator::runM2LCommunications(/*i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
+	i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, */complex * bufsave, complex * ff)
 {
 	double t_begin, t_end;
 
 	// init global send buffer
 	t_begin = MPI_Wtime();
-	initGlobalSendSegment(sendnode, sendnode_sz, nb_send, nivterm, levcom, fsend, send, endlev, codech, nst, nsp, bufsave, fniv, ff);
+	initGlobalSendSegment(_sendnode, _sendnode_sz, _nb_send, _nivterm, _levcom, _fsend, _send, _endlev, _codech, _nst, _nsp, bufsave, _fniv, ff);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_SEND_write_global_sendSegment", t_end - t_begin);
 
@@ -506,11 +519,11 @@ void Gaspi_m2l_communicator::runM2LCommunications(i64 * sendnode, int sendnode_s
     {
 		if ( i != _rank ) // if not current rank
 		{
-			if (nb_send[i] > 0) // if something to send
+			if (_nb_send[i] > 0) // if something to send
 			{
 				local_offset  = _sendBufferIndexes[i] * sizeof(complex);
 				remote_offset = _remoteBufferIndexes[i] * sizeof(complex);
-				qty = nb_send[i] * sizeof(complex);
+				qty = _nb_send[i] * sizeof(complex);
 				
 				SUCCESS_OR_DIE(
 					gaspi_write_notify( 
@@ -602,7 +615,7 @@ void Gaspi_m2l_communicator::runM2LCommunications(i64 * sendnode, int sendnode_s
 		{
 			sender = new_notif_id - notif_offset;
 			t_begin_loop = MPI_Wtime();			
-			updateFarFields(sender, levcom, nivterm, endlev, frecv, recv, nst, nsp, fniv, ff);
+			updateFarFields(sender, _levcom, _nivterm, _endlev, _frecv, _recv, _nst, _nsp, _fniv, ff);
 			t_end_loop = MPI_Wtime();
 			add_time_sec("GASPI_SEND_write_back_ff", t_end_loop - t_begin_loop);
 		}
@@ -615,14 +628,6 @@ void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm,
 	int indexToC = -1;
 	int k = nivterm;
 	int srcF=src+1;
-	
-	// DEBUG
-	//int nbEltsToRecv = 
-	dumpBuffer(_rank, frecv, _wsize, "exchange_infos", "frecv");
-	/*for (int i=0; i<_wsize; i++)
-	{
-		dumpBuffer(_rank, recv, 
-	}*/
 	
 	int qp = _globalRecvBufIdxPerRank[src]-1; // se mettre 1 case avant l'index à lire
 	
@@ -666,13 +671,13 @@ void construct_m2l_communicator(i64 * nb_send, int nb_send_sz,
 							 i64 * recvnode, int recvnode_sz,
 							 int nivterm, int levcom,
 							 complex * ff, complex * ne, int allreduce_sz,
-							 i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, 
+							 i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, 
                              Gaspi_m2l_communicator *& gCommM2L)
 {
     // Class Constructor
     gCommM2L = new Gaspi_m2l_communicator(nb_send, nb_send_sz, 	nb_recv, nb_recv_sz,
 		sendnode, sendnode_sz, recvnode, recvnode_sz, nivterm, levcom, ff, ne, allreduce_sz,
-		fsend, send, nst, nsp, fniv, codech);
+		fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech);
 }
 
 /** CLEM GASPI TOOLS **/

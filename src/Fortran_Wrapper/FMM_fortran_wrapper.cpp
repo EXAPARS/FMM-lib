@@ -217,9 +217,8 @@ void init_gaspi_ff_communicator_(
 			sendnode, (int)(*sendnode_sz),
 			recvnode, (int)(*recvnode_sz),
 			(int)(*nivterm), (int)(*levcom),
-			//0,0
 			&ff[fniv[l+1+indexToC]+1+indexToC], ne, (int)(*allreduce_sz),
-			fsend, send, nst, nsp, fniv, codech,
+			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech,
 			gCommM2L);
 	}
 }
@@ -242,7 +241,7 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 							recvnode, (int)(*recvnode_sz),
 							0, 0,
 							ff, ne, (int)(*size),
-							nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+							nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
 							gCommM2L);
 		t_end = MPI_Wtime();
 		add_time_sec("GASPI_M2L_init_class_and_create_segments", t_end - t_begin);
@@ -277,16 +276,10 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 	gaspi_rank_t _rank;
 	gaspi_proc_rank(&_rank);
 	gaspi_proc_num(&_wsize);
-	
-	dumpBuffer(_rank, frecv, _wsize, "exchange_infos", "frecv");
-	dumpBuffer(_rank, recv,  100, "exchange_infos", "num");
-	
-	
+		
 	// run M2L SEND/RECV 
 	t_begin = MPI_Wtime();
-	gCommM2L->runM2LCommunications(sendnode, (int)(*sendnode_sz),
-								nb_send, (int) (*levcom), (int) (*nivterm), endlev,
-								frecv, recv, fsend, send,  nst, nsp, fniv, codech, bufsave, ff);
+	gCommM2L->runM2LCommunications(bufsave, ff);
 								
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_sendRecv", t_end - t_begin);
