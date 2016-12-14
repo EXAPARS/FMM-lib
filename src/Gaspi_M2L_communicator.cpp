@@ -6,13 +6,23 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	i64 * nb_recv, int nb_recv_sz,
 	i64 * sendnode, int sendnode_sz,
 	i64 * recvnode, int recvnode_sz,
-	complex * ff, complex * ne, int nbEltsToReduce)
+	int nivterm, int levcom,
+	complex * ff, complex * ne, int nbEltsToReduce,
+	i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech)
 {
 	// update class attributes
 	gaspi_proc_rank(&_rank);
 	gaspi_proc_num(&_wsize);
 	_nbEltsToReduce = nbEltsToReduce;
-		
+	_nivterm = nivterm;
+    _levcom = levcom;
+	_fniv = fniv;
+    _fsend = fsend;
+    _send = send;
+    _nst = nst;
+    _nsp = nsp;
+	_codech = codech;
+
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
 	_seg_ne_allreduce_id			= 16;
@@ -30,9 +40,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	create_remoteBufferIndexes(recvnode, recvnode_sz, nb_recv);
 	create_globalSendBuffer(nb_send, nb_send_sz);
 	init_sendBufferIndexes(sendnode, sendnode_sz, nb_send);
-	
-	/*if (_rank == 0)
-		print_gaspi_config();*/
+
 }
 
 void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce)
@@ -304,11 +312,7 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 			for (int j=fsend[iDest+1+indexToC]-1; j>=fsend[iDest+indexToC]; j--)
 			{
 				int jc = j + indexToC;
-				
-				// INFO NUMEROTATION DES CELLULES
-				if(_rank == 0 && iDest == 4)
-					printf("send cell %d\n", jc);
-				
+								
 				bool todo = true;
 				int p;
 				
@@ -628,11 +632,6 @@ void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm,
 		int p = recv[jc];
 		bool todo = true;
 		
-		// INFO NUMEROTATION DES CELLULES
-		if(_rank == 3 && src == 0)
-			printf("recv cell %d\n", jc);
-
-		
 		if ((levcom<=3 || (levcom == 4 && nivterm>8))  && (p < endlev[levcom + indexToC]))
 			todo = false;
 		if ((levcom>4  || (levcom == 4 && nivterm<=8)) && (p <= endlev[levcom-1 + indexToC]))
@@ -665,12 +664,15 @@ void construct_m2l_communicator(i64 * nb_send, int nb_send_sz,
 							 i64 * nb_recv, int nb_recv_sz,
 							 i64 * sendnode, int sendnode_sz,
 							 i64 * recvnode, int recvnode_sz,
-							 complex * ff, complex * ne, int allreduce_sz, 
+							 int nivterm, int levcom,
+							 complex * ff, complex * ne, int allreduce_sz,
+							 i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, 
                              Gaspi_m2l_communicator *& gCommM2L)
 {
     // Class Constructor
     gCommM2L = new Gaspi_m2l_communicator(nb_send, nb_send_sz, 	nb_recv, nb_recv_sz,
-		sendnode, sendnode_sz, recvnode, recvnode_sz, ff, ne, allreduce_sz);
+		sendnode, sendnode_sz, recvnode, recvnode_sz, nivterm, levcom, ff, ne, allreduce_sz,
+		fsend, send, nst, nsp, fniv, codech);
 }
 
 /** CLEM GASPI TOOLS **/

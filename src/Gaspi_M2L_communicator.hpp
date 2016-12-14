@@ -60,7 +60,6 @@ public:
 	gaspi_pointer_t _ptr_seg_ff_allreduce = nullptr;
 	gaspi_pointer_t _ptr_seg_ne_allreduce = nullptr;
 
-
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
@@ -79,11 +78,22 @@ public:
 	complex * _globalSendBuffer = nullptr;
     int * _globalRecvBufIdxPerRank = nullptr;
     int * _remoteBufferIndexes = nullptr;
-    complex * _reduceNE = nullptr;
-    complex * _reduceFF = nullptr;
+    complex * _reduceNE = nullptr;			// pointeur sur les ne
+    complex * _reduceFF = nullptr;			// pointeur sur les Far Fields
     
     // other arrays
     int * _sendBufferIndexes = nullptr;
+    
+    /* arrays from Fortran*/
+    int _nivterm;					// hauteur de l'octree = dernier niveau de l'arbre
+    int _levcom;					// niveau le + haut où il y a des comms M2L (initialement, toutes les comms)
+    i64 * _fniv = nullptr;			// pour chaque niveau, @ dans FF du dernier terme de ce niveau
+    i64 * _fsend = nullptr;			// pour chaque rank, @ dans send de la 1ere cellule à échanger
+    i64 * _send = nullptr;			// liste des cellules à echanger
+    i64 * _nst = nullptr;			// nb d'angles en theta	
+    i64 * _nsp = nullptr;			// nb d'angles en phi
+	i64 * _codech = nullptr;		// 	
+    
 
 public:
 	Gaspi_m2l_communicator(
@@ -91,7 +101,9 @@ public:
 		i64 * nb_recv, int nb_recv_sz,
 		i64 * sendnode, int sendnode_sz,
 		i64 * recvnode, int recvnode_sz,
-		complex * ff, complex * ne, int allreduce_sz);
+		int nivterm, int levcom,
+		complex * ff, complex * ne, int nbEltsToReduce,
+		i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech);
 
 	void create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce);
 	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
@@ -117,8 +129,12 @@ void construct_m2l_communicator(i64 * nb_send, int nb_send_sz,
 							 i64 * nb_recv, int nb_recv_sz,
 							 i64 * sendnode, int sendnode_sz,
 							 i64 * recvnode, int recvnode_sz,
-							 complex * ff, complex * ne, int size,
+							 int nivterm, int levcom,
+							 complex * ff, complex * ne, int allreduce_sz,
+							 i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech,
                              Gaspi_m2l_communicator *& gCommM2L);
+
+
 
 /** GASPI TOOLS **/
 void print_gaspi_config();

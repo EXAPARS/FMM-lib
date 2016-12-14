@@ -194,6 +194,36 @@ void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
 	add_time_sec("GASPI_broadcast", t_end - t_begin);
 }
 
+void init_gaspi_ff_communicator_(
+							i64 * recvnode,	i64 * recvnode_sz,
+							i64 * sendnode, 	i64 * sendnode_sz,
+							i64 * nb_recv, 	i64 * nb_recv_sz,
+							i64 * nb_send, 	i64 * nb_send_sz,
+							i64 * nivterm,	i64 * levcom,
+							i64 * fniv,		i64 * nst,			i64 * nsp,
+							complex * ff, complex * ne, i64 * allreduce_sz,
+							i64 * fsend, 		i64 * send,
+							i64 * frecv,		i64 * recv,
+							i64 * endlev,		i64 * codech) 
+{
+	int indexToC = -1;
+	int l = (int)(*levcom);
+	
+	if (! gCommM2L)
+	{
+    	construct_m2l_communicator(
+			nb_send, (int)(*nb_send_sz), 
+			nb_recv, (int)(*nb_recv_sz),
+			sendnode, (int)(*sendnode_sz),
+			recvnode, (int)(*recvnode_sz),
+			(int)(*nivterm), (int)(*levcom),
+			//0,0
+			&ff[fniv[l+1+indexToC]+1+indexToC], ne, (int)(*allreduce_sz),
+			fsend, send, nst, nsp, fniv, codech,
+			gCommM2L);
+	}
+}
+
 void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
 							i64 * recvnode, i64 * recvnode_sz, 
 							i64 * sendnode, i64 * sendnode_sz,
@@ -201,18 +231,19 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 							i64 * nb_send, 	i64 * nb_send_sz)
 {
 	double t_begin, t_end;
-	//cout << "WRAPPER : nbElements to REDUCE : " << (*size) << endl;
 	// First call : Class instantiation, allocations and Gaspi segment creation
 	if (! gCommM2L)
 	{	
-		
 		t_begin = MPI_Wtime();
-    	construct_m2l_communicator(nb_send, (int)(*nb_send_sz), 
-							  nb_recv, (int)(*nb_recv_sz),
-							  sendnode, (int)(*sendnode_sz),
-							  recvnode, (int)(*recvnode_sz),
-							  ff, ne, (int)(*size),
-							  gCommM2L);
+    	construct_m2l_communicator(
+							nb_send, (int)(*nb_send_sz), 
+							nb_recv, (int)(*nb_recv_sz),
+							sendnode, (int)(*sendnode_sz),
+							recvnode, (int)(*recvnode_sz),
+							0, 0,
+							ff, ne, (int)(*size),
+							nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+							gCommM2L);
 		t_end = MPI_Wtime();
 		add_time_sec("GASPI_M2L_init_class_and_create_segments", t_end - t_begin);
 	}
@@ -222,20 +253,6 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 	gCommM2L->runM2LallReduce(ff, ne);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_allReduce_ff", t_end - t_begin);
-}
-
-void call init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
-									  i64 * sendnode, 	i64 * sendnode_sz,
-									  i64 * nb_recv, 	i64 * nb_recv_sz,
-									  i64 * nb_send, 	i64 * nb_send_sz,
-									  i64 * nivterm,	i64 * levcom,
-									  i64 * fniv, i64 * nst, i64 * nsp,
-									  complex * ff, 
-									  i64 * fsend, 		i64 * send,
-									  i64 * frecv,		i64 * recv,
-									  i64 * endlev,		i64 * codech)
-{
-	
 }
 
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
