@@ -104,6 +104,8 @@ public:
 	int _nb_recv_sz;
 	int _sendnode_sz;
 	int _recvnode_sz;
+	int _ff_sz;
+	int _allRed_ff_idx;
     
 
 public:
@@ -114,42 +116,33 @@ public:
 		i64 * recvnode, int recvnode_sz,
 		int nivterm, int levcom,
 		complex * ff, complex * ne, int nbEltsToReduce,
-		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech);
+		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech, int ff_sz);
 
 	void create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce);
 	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
 	void create_remoteBufferIndexes(i64 * recvnode, int recvnode_sz, i64 * nb_recv);
 	void create_globalSendBuffer(i64 * nb_send, int nb_send_sz);
 	void init_sendBufferIndexes(i64 * sendnode, int sendnode_sz, i64 * nb_send);	
-
-
+	
 	void runM2LallReduce(complex * ff, complex * ne);
-	void runM2LCommunications (/*i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
-		i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, */complex * bufsave, complex * ff);
+	void runM2LallReduce_gaspi_hack(complex * ff, complex * ne);
+	void runM2LCommunications (complex * bufsave, complex * ff);
 
-	void initGlobalSendSegment(i64 * sendnode, int sendnode_sz, i64 * nb_send, int nivterm, int levcom, i64 * fsend, i64 * send, i64 * endlev,
-		i64 * codech, i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv, complex * ff);
+	void initGlobalSendSegment(complex * bufsave, complex * ff);
 	void initAllReduceBuffers(complex * ff, complex * ne);
-
-	void updateFarFields(int src, int levcom, int nivterm, i64 * endlev, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, complex * ff);
+	void updateFarFields(int src, complex * ff);
 };
 
-
-
-void construct_m2l_communicator(i64 * nb_send, int nb_send_sz, 
-							 i64 * nb_recv, int nb_recv_sz,
-							 i64 * sendnode, int sendnode_sz,
-							 i64 * recvnode, int recvnode_sz,
-							 int nivterm, int levcom,
-							 complex * ff, complex * ne, int allreduce_sz,
-							 i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, 
-                             Gaspi_m2l_communicator *& gCommM2L);
-
-
-
-/** GASPI TOOLS **/
-void print_gaspi_config();
-//void print_gaspi_config(char ** out);
+void construct_m2l_communicator(
+	i64 * nb_send, int nb_send_sz, 
+	i64 * nb_recv, int nb_recv_sz,
+	i64 * sendnode, int sendnode_sz,
+	i64 * recvnode, int recvnode_sz,
+	int nivterm, int levcom,
+	complex * ff, complex * ne, int allreduce_sz,
+	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, 
+	i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, int ff_sz,
+	Gaspi_m2l_communicator *& gCommM2L);
 
 /**
  * GASPI TAGS - Notification values
@@ -157,7 +150,6 @@ void print_gaspi_config();
 
 // seg remoteIndexes
 #define REMOTE_ADDRESS 1
-
 
 // seg global recv bugger
 #define SEND_DATA 10

@@ -82,7 +82,7 @@ Gaspi_unknowns_communicator::Gaspi_unknowns_communicator(complex * xtmp, complex
 
 void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 {
-	int nbQueues = 8;
+	int nbQueues = 1;
 	int offsetMultiple = 4;
 	int localOffset = 0;
 	double t_begin, t_end;
@@ -94,13 +94,13 @@ void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 		"GASPI_REDUCE_UNK_write_notify");
 
 	// RECV and reduce on _unknowns array
-	copy_local_data<complex>(_unknowns, _unknownsTmp, 0, _nbUnknowns, "GASPI_REDUCE_UNK");
+	copy_local_data<complex>(_unknowns, _unknownsTmp, _nbUnknowns, "GASPI_REDUCE_UNK");
 	receive_allReduce(offsetMultiple, "GASPI_REDUCE_UNK", _nbUnknowns, _wsize, _seg_glob_unk_id, ALLREDUCE_UNKNOWNS, _unknowns, _globalUnknowns);
 }
 
 void Gaspi_unknowns_communicator::runBroadcastUnknowns()
 {
-	int nbQueues = 8;
+	int nbQueues = 1;
 	int offsetMultiple = 3;
 	broadcast_buffer(nbQueues, offsetMultiple, _nbUnknowns, sizeof(complex), _rank, _wsize, _seg_loc_unk_id, BROADCAST_UNKNOWNS);
 }

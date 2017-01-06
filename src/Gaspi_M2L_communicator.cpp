@@ -8,7 +8,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	i64 * recvnode, int recvnode_sz,
 	int nivterm, int levcom,
 	complex * ff, complex * ne, int nbEltsToReduce,
-	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech)
+	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, int ff_sz)
 {
 	// update class attributes
 	gaspi_proc_rank(&_rank);
@@ -33,8 +33,20 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_recvnode = recvnode;
 	_recvnode_sz = recvnode_sz;
 	_endlev = endlev;
+	_ff_sz = ff_sz;
+	_allRed_ff_idx = _fniv[_levcom]; //fniv[l+1+indexToC]+1+indexToC
+
+	// cout << _rank << " " << "allreduce index in ff : " << _allRed_ff_idx << endl;
+	// cout << _rank << " " << "size of ff " << ff_sz << endl;
+	// cout << _rank << " " << "@ de ff : " << ff << endl;
+	// cout << _rank << " " << "@ de ff[_allRed_ff_idx] : " << &ff[_allRed_ff_idx] << endl;
+	/*cout << _rank << " size of ff " << ff_sz << endl;
+	cout << _rank << " allreduce index in ff : " << _allRed_ff_idx << endl;
+	cout << _rank << " nbElmts to reduce : " << _nbEltsToReduce << endl;
+	cout << _rank << "Upper bound verif : " << _allRed_ff_idx + _nbEltsToReduce - 1 << endl;
+	cout << _rank << "Check if ok : " << (_allRed_ff_idx + _allRed_ff_idx - 1 < ff_sz) << endl;*/
 	
-	
+	// print_gaspi_config();
 
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
@@ -64,6 +76,7 @@ void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne,
 			_seg_ff_allreduce_id,
 			ff,
 			nbEltsToReduce*sizeof(complex),
+			//_ff_sz*sizeof(complex),
 			GASPI_GROUP_ALL,
 			GASPI_BLOCK, 
 			0
@@ -88,6 +101,8 @@ void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne,
 	// user pointers
 	_reduceNE= (complex *)_ptr_seg_ne_allreduce;
 	_reduceFF = (complex *) _ptr_seg_ff_allreduce;
+	//cout << _rank << " " << "@ de _reduceFF[_allRed_ff_idx] : " << &_reduceFF[_allRed_ff_idx] << endl;
+	
 	
 	// class size attributes
 	_seg_reduce_size = nbEltsToReduce * sizeof(complex);
@@ -293,36 +308,36 @@ void Gaspi_m2l_communicator::create_globalSendBuffer(i64 * nb_send, int nb_send_
 }
 
 void Gaspi_m2l_communicator::initGlobalSendSegment(
-	i64 * sendnode, int sendnode_sz, i64 * nb_send, 
+	/*i64 * sendnode, int sendnode_sz, i64 * nb_send, 
 	int nivterm, int levcom, i64 * fsend, i64 * send, i64 * endlev,
-	i64 * codech, i64 * nst, i64 * nsp, complex * bufsave, i64 * fniv, complex * ff)
+	i64 * codech, i64 * nst, i64 * nsp, */complex * bufsave,/* i64 * fniv,*/ complex * ff)
 {
 	int indexToC = -1;
 	
 	// Global send buffer indexes
 	int * globalSendBufferIndex = nullptr;
-	globalSendBufferIndex = new int[sendnode_sz]();
+	globalSendBufferIndex = new int[_sendnode_sz]();
 	
-	for (int i=1; i<sendnode_sz; i++)
+	for (int i=1; i<_sendnode_sz; i++)
 	{
-		if (sendnode[i-1] == 0)
+		if (_sendnode[i-1] == 0)
 			globalSendBufferIndex[i] = globalSendBufferIndex[i-1];
 	    else
-			globalSendBufferIndex[i] = globalSendBufferIndex[i-1] + nb_send[sendnode[i-1]+indexToC];
+			globalSendBufferIndex[i] = globalSendBufferIndex[i-1] + _nb_send[_sendnode[i-1]+indexToC];
 	}
 	
 	// Fill Global send Buffer
-	for (int i=0; i<sendnode_sz; i++)
+	for (int i=0; i<_sendnode_sz; i++)
 	{
-		int iDest = sendnode[i];
-		int k = nivterm;
+		int iDest = _sendnode[i];
+		int k = _nivterm;
 		int q = globalSendBufferIndex[i]-1;
 		
 		if (iDest > 0)
 		{
 			// pour toutes les cellules à échanger avec iDest
 			// de la dernière cellule à envoyer -> à la première
-			for (int j=fsend[iDest+1+indexToC]-1; j>=fsend[iDest+indexToC]; j--)
+			for (int j=_fsend[iDest+1+indexToC]-1; j>=_fsend[iDest+indexToC]; j--)
 			{
 				int jc = j + indexToC;
 								
@@ -330,27 +345,27 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 				int p;
 				
 				// l = numero de la cellule à envoyer
-				int l = send[jc];
-				if ((levcom<=3 || (levcom == 4 && nivterm>8))  && (l < endlev[levcom + indexToC]))
+				int l = _send[jc];
+				if ((_levcom<=3 || (_levcom == 4 && _nivterm>8))  && (l < _endlev[_levcom + indexToC]))
 					todo = false;
-				if ((levcom>4  || (levcom == 4 && nivterm<=8)) && (l <= endlev[levcom-1 + indexToC]))
+				if ((_levcom>4  || (_levcom == 4 && _nivterm<=8)) && (l <= _endlev[_levcom-1 + indexToC]))
 					todo = false;
 					
 				if (todo)
 				{
 					// place k pour que k = niveau de la cellule à envoyer
-					while(l <= endlev[k-1 + indexToC])
+					while(l <= _endlev[k-1 + indexToC])
 						k--;
 					
 					// cas 1 : 
 					// si l est commun à +ieurs noeuds
 					// communique les données sauvegardées dans BUFSAVE
-					if (codech[l + indexToC] > 1)
+					if (_codech[l + indexToC] > 1)
 					{
-						p=codech[l + indexToC]-2;
-						for (int st=0; st<nst[k + indexToC]; st++)
+						p=_codech[l + indexToC]-2;
+						for (int st=0; st<_nst[k + indexToC]; st++)
 						{
-							for (int sp=0; sp<nsp[k + indexToC]; sp++)
+							for (int sp=0; sp<_nsp[k + indexToC]; sp++)
 							{
 								p++;
 								q++;
@@ -362,12 +377,12 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 					else
 					{
 						// calcule le bon index pour p (= offset)
-						p=fniv[k+1 + indexToC]+(endlev[k + indexToC]-l)*nst[k + indexToC]*nsp[k + indexToC];
+						p=_fniv[k+1 + indexToC]+(_endlev[k + indexToC]-l)*_nst[k + indexToC]*_nsp[k + indexToC];
 						
 						// communique  nst(niveau) x nsp(niveau) complexes depuis FF
-						for (int st=0; st<nst[k + indexToC]; st++)
+						for (int st=0; st<_nst[k + indexToC]; st++)
 						{
-							for (int sp=0; sp<nsp[k + indexToC];  sp++)
+							for (int sp=0; sp<_nsp[k + indexToC];  sp++)
 							{
 								p++;
 								q++;
@@ -450,7 +465,7 @@ void Gaspi_m2l_communicator::init_sendBufferIndexes(i64 * sendnode, int sendnode
 void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 {
 	// test à l'arrache réutilisation de code
-	int nbQueues = 8;
+	int nbQueues = 1;
 	int localOffset = 0;
 	int offsetMultiple = 1;
 	int nbElts = _nbEltsToReduce;
@@ -458,23 +473,57 @@ void Gaspi_m2l_communicator::runM2LallReduce(complex * ff, complex * ne)
 	// SEND
 	broadcast_to_global_buffer(
 		nbQueues, localOffset, offsetMultiple, nbElts, sizeof(complex), 
-		_rank, _wsize, _seg_ff_allreduce_id, _seg_globalRecvBuffer_id, ALLREDUCE, 
-		"GASPI_REDUCE_FF_write_notify");
-
+		_rank, _wsize, _seg_ff_allreduce_id, _seg_globalRecvBuffer_id, ALLREDUCE, "GASPI_REDUCE_FF_write_notify");
+	
 	// RECV and reduce on _unknowns array
-	copy_local_data<complex>(_reduceNE, _reduceFF, 0, nbElts, "GASPI_REDUCE_FF");
+	copy_local_data<complex>(_reduceNE, _reduceFF, nbElts, "GASPI_REDUCE_FF");
+	
 	receive_allReduce(offsetMultiple, "GASPI_REDUCE_FF", nbElts, _wsize, _seg_globalRecvBuffer_id, ALLREDUCE, _reduceNE, _globalRecvBuffer);
 }	
 	
+void Gaspi_m2l_communicator::runM2LallReduce_gaspi_hack(complex * ff, complex * ne)
+{
+	// test à l'arrache réutilisation de code
+	/*int nbQueues = 1;
+	int localOffset = 0;
+	int offsetMultiple = 1;*/
+	cout << "allreduce gaspi hack" << endl;
+	int nbElts = _nbEltsToReduce;
+	/*
+	// SEND
+	broadcast_to_global_buffer(
+		nbQueues, localOffset, offsetMultiple, nbElts, sizeof(complex), 
+		_rank, _wsize, _seg_ff_allreduce_id, _seg_globalRecvBuffer_id, ALLREDUCE, "GASPI_REDUCE_FF_write_notify");
 	
-void Gaspi_m2l_communicator::runM2LCommunications(/*i64 * sendnode, int sendnode_sz, i64 * nb_send,int levcom, int nivterm, 
-	i64 * endlev, i64 * frecv, i64 * recv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * fniv, i64 * codech, */complex * bufsave, complex * ff)
+	// RECV and reduce on _unknowns array
+	copy_local_data<complex>(_reduceNE, _reduceFF, nbElts, "GASPI_REDUCE_FF");
+	
+	receive_allReduce(offsetMultiple, "GASPI_REDUCE_FF", nbElts, _wsize, _seg_globalRecvBuffer_id, ALLREDUCE, _reduceNE, _globalRecvBuffer);
+	*/
+	
+	cout << "I have to reduce : " << nbElts * 2 << " doubles." << endl;
+	
+	SUCCESS_OR_DIE(
+		gaspi_allreduce(
+			_ptr_seg_ff_allreduce,
+			_ptr_seg_ne_allreduce,
+			nbElts*2/*256*/,
+			GASPI_OP_SUM,
+			GASPI_TYPE_DOUBLE,
+			GASPI_GROUP_ALL,
+			GASPI_TIMEOUT
+		)
+	);
+}	
+	
+	
+void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * ff)
 {
 	double t_begin, t_end;
 
 	// init global send buffer
 	t_begin = MPI_Wtime();
-	initGlobalSendSegment(_sendnode, _sendnode_sz, _nb_send, _nivterm, _levcom, _fsend, _send, _endlev, _codech, _nst, _nsp, bufsave, _fniv, ff);
+	initGlobalSendSegment(bufsave, ff);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_SEND_write_global_sendSegment", t_end - t_begin);
 
@@ -615,45 +664,44 @@ void Gaspi_m2l_communicator::runM2LCommunications(/*i64 * sendnode, int sendnode
 		{
 			sender = new_notif_id - notif_offset;
 			t_begin_loop = MPI_Wtime();			
-			updateFarFields(sender, _levcom, _nivterm, _endlev, _frecv, _recv, _nst, _nsp, _fniv, ff);
+			updateFarFields(sender, ff);
 			t_end_loop = MPI_Wtime();
 			add_time_sec("GASPI_SEND_write_back_ff", t_end_loop - t_begin_loop);
 		}
 	}
 }
 
-void Gaspi_m2l_communicator::updateFarFields(int src, int levcom, int nivterm, 
-	i64 * endlev, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, complex * ff)
+void Gaspi_m2l_communicator::updateFarFields(int src, complex * ff)
 {		
 	int indexToC = -1;
-	int k = nivterm;
+	int k = _nivterm;
 	int srcF=src+1;
 	
 	int qp = _globalRecvBufIdxPerRank[src]-1; // se mettre 1 case avant l'index à lire
 	
-	for (int j=frecv[srcF+1+indexToC]-1; j>=frecv[srcF+indexToC]; j--)
+	for (int j=_frecv[srcF+1+indexToC]-1; j>=_frecv[srcF+indexToC]; j--)
 	{
 		int jc = j + indexToC;
-		int p = recv[jc];
+		int p = _recv[jc];
 		bool todo = true;
 		
-		if ((levcom<=3 || (levcom == 4 && nivterm>8))  && (p < endlev[levcom + indexToC]))
+		if ((_levcom<=3 || (_levcom == 4 && _nivterm>8))  && (p < _endlev[_levcom + indexToC]))
 			todo = false;
-		if ((levcom>4  || (levcom == 4 && nivterm<=8)) && (p <= endlev[levcom-1 + indexToC]))
+		if ((_levcom>4  || (_levcom == 4 && _nivterm<=8)) && (p <= _endlev[_levcom-1 + indexToC]))
 			todo = false;
 		
 		if (todo)
 		{
 			// go to the right octree level
-			while(p <= endlev[k-1 + indexToC])
+			while(p <= _endlev[k-1 + indexToC])
 				k--;
 			
 			// update far fields
-			int pp = fniv[k+1 + indexToC]+(endlev[k + indexToC]-p)*nst[k + indexToC]*nsp[k + indexToC];
+			int pp = _fniv[k+1 + indexToC]+(_endlev[k + indexToC]-p)*_nst[k + indexToC]*_nsp[k + indexToC];
 			
-			for (int st=0; st<nst[k + indexToC]; st++)
+			for (int st=0; st<_nst[k + indexToC]; st++)
 			{
-				for (int sp=0; sp<nsp[k + indexToC]; sp++)
+				for (int sp=0; sp<_nsp[k + indexToC]; sp++)
 				{
 					pp++;
 					qp++;
@@ -671,38 +719,13 @@ void construct_m2l_communicator(i64 * nb_send, int nb_send_sz,
 							 i64 * recvnode, int recvnode_sz,
 							 int nivterm, int levcom,
 							 complex * ff, complex * ne, int allreduce_sz,
-							 i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, 
+							 i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, int ff_sz,
                              Gaspi_m2l_communicator *& gCommM2L)
 {
     // Class Constructor
     gCommM2L = new Gaspi_m2l_communicator(nb_send, nb_send_sz, 	nb_recv, nb_recv_sz,
 		sendnode, sendnode_sz, recvnode, recvnode_sz, nivterm, levcom, ff, ne, allreduce_sz,
-		fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech);
+		fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, ff_sz);
 }
 
-/** CLEM GASPI TOOLS **/
-void print_gaspi_config()
-{
-	gaspi_config_t config; 
-	gaspi_config_get(&config);
-	
-	cout << "logger=" << config.logger << std::endl;
-	cout << "sn_port=" << config.sn_port << std::endl;
-	cout << "net_info=" << config.net_info << std::endl;
-	cout << "netdev_id=" << config.netdev_id << std::endl;
-	cout << "mtu=" << config.mtu << std::endl;
-	cout << "port_check=" << config.port_check << std::endl;
-	cout << "user_net=" << config.user_net << std::endl;
-	cout << "network=" << config.network << std::endl;
-	cout << "queue_depth=" << config.queue_depth << std::endl;
-	cout << "queue_num=" << config.queue_num << std::endl;
-	cout << "group_max=" << config.group_max << std::endl;
-	cout << "segment_max=" << config.segment_max << std::endl;
-	cout << "transfer_size_max=" << config.transfer_size_max << std::endl;
-	cout << "notification_num=" << config.notification_num << std::endl;
-	cout << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl;
-	cout << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl;
-	cout << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl;
-	cout << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl;
-	cout << "build_infrastructure=" << config.build_infrastructure << std::endl;
-}
+

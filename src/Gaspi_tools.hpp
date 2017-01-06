@@ -39,16 +39,16 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 
 
 template <typename T>
-void copy_local_data(T * _unknowns, T * _unknownsTmp, int startIndex, int nbElts, string timingMsg)
+void copy_local_data(T * destBuffer, T * srcBuffer, int nbElts, string timingMsg)
 {
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
 	
 	int i;
 	#pragma omp parallel for default(shared) private(i)
-	for (i=startIndex; i<nbElts; i++)
+	for (i=0; i<nbElts; i++)
 	{   
-		_unknowns[i] = _unknownsTmp[i];
+		destBuffer[i] = srcBuffer[i];
 	}
 	
 	t_end = MPI_Wtime();
@@ -60,6 +60,8 @@ void copy_local_data(T * _unknowns, T * _unknownsTmp, int startIndex, int nbElts
 void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfElem,
 	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, int notifValue);
 
+// clem 
+void print_gaspi_config();
 
 #define SUCCESS_OR_DIE(f...)\
 do\

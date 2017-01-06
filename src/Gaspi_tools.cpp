@@ -241,5 +241,32 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 	
 	// timing
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_UNK_write_back_unk", t_end - t_begin); 
+	add_time_sec(timingPrefix + "_write_back_unk", t_end - t_begin); 
+}
+
+/** CLEM GASPI TOOLS **/
+void print_gaspi_config()
+{
+	gaspi_config_t config; 
+	gaspi_config_get(&config);
+	
+	cout << "logger=" << config.logger << std::endl;
+	cout << "sn_port=" << config.sn_port << std::endl;
+	cout << "net_info=" << config.net_info << std::endl;
+	cout << "netdev_id=" << config.netdev_id << std::endl;
+	cout << "mtu=" << config.mtu << std::endl;
+	cout << "port_check=" << config.port_check << std::endl;
+	cout << "user_net=" << config.user_net << std::endl;
+	cout << "network=" << config.network << std::endl;
+	cout << "queue_depth=" << config.queue_depth << std::endl;
+	cout << "queue_num=" << config.queue_num << std::endl;
+	cout << "group_max=" << config.group_max << std::endl;
+	cout << "segment_max=" << config.segment_max << std::endl;
+	cout << "transfer_size_max=" << config.transfer_size_max << std::endl;
+	cout << "notification_num=" << config.notification_num << std::endl;
+	cout << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl;
+	cout << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl;
+	cout << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl;
+	cout << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl;
+	cout << "build_infrastructure=" << config.build_infrastructure << std::endl;
 }

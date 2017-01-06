@@ -25,15 +25,15 @@ set (FMM_DIR "/da/soc/groupes/csc/projet.h4h/d101219/FMM/FMM-lib")
 set (FMM_INCLUDE "${FMM_DIR}/include")
 set (FMM_HEADERS "${FMM_DIR}/src")
 
-# sources
+# ---------------- sources
 file (GLOB_RECURSE FMM_src_list ../src/*)
 include_directories(${FMM_INCLUDE} ${FMM_HEADERS})
 
-# NM tools
+# ---------------- NM tools
 set (NMTOOLS_LIB 		"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/libNMToolkit.so")
 set (NMTOOLS_INCLUDE 	"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT")
 
-# Boost
+# ---------------- Boost
 set (BOOST_MPI_LIB 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_mpi.so")
 set (BOOST_SERIALIZATION_LIB "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_serialization.so")
 set (BOOST_LIB 
@@ -42,40 +42,39 @@ set (BOOST_LIB
 	)
 set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
 
-#GASPI
+# ---------------- GASPI
 set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
 set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
 set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")
 set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
 
-
-# set compile FLAGS
+# ---------------- set compile FLAGS
 set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
 set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
 
 
-# set library
+# ---------------- set output library
 add_library (
     fmm
     SHARED
     ${FMM_src_list}
 )
 
-# verbosity
+# ----------------  verbosity
 set (CMAKE_VERBOSE_MAKEFILE 1)
 
-# MPI
+# ----------------  MPI
 find_package (MPI)
 include_directories(${MPI_INCLUDE_PATH})
 
-# GASPI
+# ----------------  GASPI
 include_directories (${GASPI_INCLUDE})
 
-# LINK
+# ----------------  LINK
 target_link_libraries(fmm
 	${MPI_LIBRARIES} 
-#	${GASPI_LIB}
+#	${GASPI_HACK_LIB}
 	${NMTOOLS_LIB}
 	${BOOST_LIB}
 )

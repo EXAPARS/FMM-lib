@@ -68,14 +68,20 @@ extern "C"
 										  complex * ff, complex * ne, i64 * allreduce_sz,
 										  i64 * fsend, 		i64 * send,
 										  i64 * frecv,		i64 * recv,
-										  i64 * endlev,		i64 * codech);
+										  i64 * endlev,		i64 * codech,
+										  i64 * ff_sz);
 										    
 	void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
 							i64 * recvnode, i64 * recvnode_sz, 
 							i64 * sendnode, i64 * sendnode_sz,
 							i64 * nb_recv, 	i64 * nb_recv_sz,
 							i64 * nb_send, 	i64 * nb_send_sz);
-							
+
+	void fmm_handle_allreduce_gaspi_hack_(complex * ff, complex * ne, i64 * size, 
+							i64 * recvnode, i64 * recvnode_sz, 
+							i64 * sendnode, i64 * sendnode_sz,
+							i64 * nb_recv, 	i64 * nb_recv_sz,
+							i64 * nb_send, 	i64 * nb_send_sz);							
 							
 	void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 								 i64 * sendnode, 	i64 * sendnode_sz,
