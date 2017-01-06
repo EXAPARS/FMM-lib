@@ -102,6 +102,9 @@ extern "C"
 	void fmm_gaspi_init_handler_();
 	void fmm_gaspi_destroy_handler_();
 	
+	// gaspi overlap
+	void gaspi_send_ff_(i64 * niv);
+
 	// debug tools
 	void fmm_dump_(complex * tab);
 
