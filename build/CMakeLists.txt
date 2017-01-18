@@ -43,15 +43,15 @@ set (BOOST_LIB
 set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
 
 # ---------------- GASPI
-set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
+set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2-Hack")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
 set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
 set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")
 set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
 
 # ---------------- set compile FLAGS
-set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
-set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
+set (CMAKE_CXX_FLAGS "-g -fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
+set (MPI_COMPILE_FLAGS "-g -fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
 
 
 # ---------------- set output library

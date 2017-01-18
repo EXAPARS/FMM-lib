@@ -25,6 +25,10 @@
 #include <iostream>
 #include <fstream> 
 #include <cmath>
+#include <algorithm>
+#include <fstream>
+#include <vector>
+#include "Complex.hpp"
 
 
 using namespace std;
@@ -69,7 +73,7 @@ void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 	{
 		cerr << "Buffer to dump is not allocated."; exit(-1);
 	}
-	out << message << endl;
+	//out << message << endl;
 	for (int i=0; i<size; i++)
 		out << buffer[i] << "\n";
 	out << endl;
@@ -82,6 +86,9 @@ void dump_tree_init(int rank);
 void dump_tree_add_child(int rank, int64_t parent, int64_t child, int nbParticles);
 void dump_tree_close_file(int rank);
 
+
+/** DIFF DATA **/
+void loadAndDiffData(const string & file1, const string & file2);
 
 
 

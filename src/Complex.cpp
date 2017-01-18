@@ -7,10 +7,10 @@ using namespace std;
 
 ostream& operator << (ostream& out, const complex & c)  
 {  
-	out << std::scientific;
-	out << c.re;
-	out << " ";
-	if (c.im >= 0) out << "+";
-	out << c.im <<" i";
+	//out << std::scientific;
+	out << c.re << endl;
+	//out << " ";
+	//if (c.im >= 0) out << "+";
+	out << c.im;
 	return out;
 }

@@ -5,8 +5,8 @@ using namespace std;
 void flush_queues(int nbQueues)
 {
 	
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
+	//double t_begin, t_end;
+	//t_begin = MPI_Wtime();
     
     gaspi_queue_id_t queue=0;       
 	gaspi_number_t queueSizeMax;
@@ -22,6 +22,7 @@ void flush_queues(int nbQueues)
 		
 		// get size
 		SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
+		cout << "queueSize : " << queueSize << endl;
 		
 		// if too much, throw error
 		if (queueSize > queueSizeMax) 
@@ -34,13 +35,16 @@ void flush_queues(int nbQueues)
 		// if more than half, flush
 		else if (queueSize >= queueSizeMax/2) 
 		{
+			cout << "--- FLUSH --- queue : " << int(queue) << endl;
+			cout << "queueSize : " << queueSize << endl;
+			cout << "queueSizeMax/2 : " << queueSizeMax/2 << endl; 
 			SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
 		}
 	}
 	
 	// measure
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_REDUCE_UNK_flush_queue", t_end - t_begin);
+	//t_end = MPI_Wtime();
+	//add_time_sec("GASPI_REDUCE_UNK_flush_queue", t_end - t_begin);
 }
 
 

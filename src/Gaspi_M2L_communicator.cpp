@@ -36,17 +36,15 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_ff_sz = ff_sz;
 	_allRed_ff_idx = _fniv[_levcom]; //fniv[l+1+indexToC]+1+indexToC
 
-	// cout << _rank << " " << "allreduce index in ff : " << _allRed_ff_idx << endl;
-	// cout << _rank << " " << "size of ff " << ff_sz << endl;
-	// cout << _rank << " " << "@ de ff : " << ff << endl;
-	// cout << _rank << " " << "@ de ff[_allRed_ff_idx] : " << &ff[_allRed_ff_idx] << endl;
-	/*cout << _rank << " size of ff " << ff_sz << endl;
-	cout << _rank << " allreduce index in ff : " << _allRed_ff_idx << endl;
-	cout << _rank << " nbElmts to reduce : " << _nbEltsToReduce << endl;
-	cout << _rank << "Upper bound verif : " << _allRed_ff_idx + _nbEltsToReduce - 1 << endl;
-	cout << _rank << "Check if ok : " << (_allRed_ff_idx + _allRed_ff_idx - 1 < ff_sz) << endl;*/
 	
 	// print_gaspi_config();
+	if (_rank == 1)
+	{
+		cout << "nbsend[0] = " << _nb_send[0] << endl;
+		cout << "nbsend[1] = " << _nb_send[1] << endl;
+		cout << "nbsend[2] = " << _nb_send[2] << endl;
+		cout << "nbsend[3] = " << _nb_send[3] << endl;
+	}
 
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
@@ -58,6 +56,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 										  // temporary, only for initialization computations 
 	// allocate array
 	_sendBufferIndexes = new int[_wsize]();
+	_offsetKeeper = new int[_wsize]();
 	
 	// create gaspi segments, and initialize them
 	create_allReduceBuffers(ff, ne, nbEltsToReduce);
@@ -313,6 +312,7 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 	i64 * codech, i64 * nst, i64 * nsp, */complex * bufsave,/* i64 * fniv,*/ complex * ff)
 {
 	int indexToC = -1;
+	static int first = 1;
 	
 	// Global send buffer indexes
 	int * globalSendBufferIndex = nullptr;
@@ -394,8 +394,15 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 			}
 		}
 	} // end fill global send buffer
-	
 	delete [] globalSendBufferIndex;
+
+	// debug
+	if (first)
+	{
+		dumpBuffer<complex>(_rank, _globalSendBuffer, _seg_globalSendBuffer_size/16, "globalSendBuffer", "levcom");
+	}
+
+	first = 0;
 }
 
 
@@ -548,6 +555,8 @@ void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * f
 	{
 		queue=i;
 		SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
+		cout << "queueSize : " << queueSize << endl;
+
 		if (queueSize > queueSizeMax) 
 		{
 			cerr << "Rank " << _rank << " has exceeded its queue capacity." << endl;
@@ -589,6 +598,10 @@ void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * f
 					)
 				);
 				
+				if (_rank == 1)
+				{
+					cout << "1 sends to : " << i << " " << int(qty)/sizeof(complex) << " terms" << endl;
+				}
 				//register_write(_rank, i, qty);
 			}
 			else // no data to send, notify anyway
@@ -667,6 +680,130 @@ void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * f
 			updateFarFields(sender, ff);
 			t_end_loop = MPI_Wtime();
 			add_time_sec("GASPI_SEND_write_back_ff", t_end_loop - t_begin_loop);
+		}
+	}
+}
+
+void Gaspi_m2l_communicator::send_ff_level(int level, complex * ff)
+{
+	static int first = 0;
+	int indexToC = -1;
+	gaspi_queue_id_t queue=0;
+	
+	// gestion de la queue
+	gaspi_number_t queueSizeMax;
+	gaspi_number_t queueSize;	
+	SUCCESS_OR_DIE (gaspi_queue_size_max (&queueSizeMax));
+	SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
+
+	if (queueSize > queueSizeMax) 
+	{
+		cerr << "Rank " << _rank << " has exceeded its queue capacity." << endl;
+		exit(1);
+	}
+	else if (queueSize >= queueSizeMax/2) 
+	{
+		cout << "--- FLUSH --- queue : " << int(queue) << endl;
+		SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
+	}
+	/* Attention si 512 MPI, queue déjà pleine ... */
+	
+	
+	// pour chaque voisin
+	for (int dest=0; dest<_wsize; dest++)
+	{
+		if (dest != _rank)
+		{
+			// box range to send, FROM SEND ARRAY
+			int firstBoxToSendIDX= _fsend[dest] + indexToC;
+			int lastBoxToSendIDX = _fsend[dest+1]-1 + indexToC;
+			
+			// cell range from the current level
+			int beginlevel = _endlev[level-1]+1 + indexToC; 
+			int endlevel   = _endlev[level] + indexToC;
+			
+			int count = 0;
+			int q = _sendBufferIndexes[dest] - 1 + _offsetKeeper[dest];
+			
+			// remplissage du buffer d'envoi, par ordre décroissant
+			for (int k = lastBoxToSendIDX; k>=firstBoxToSendIDX; k--)
+			{
+				int cellID = _send[k] + indexToC;
+				
+				if ( (cellID >= beginlevel) && (cellID <= endlevel))	/* todo : stop earlier, cells are ranged in ascending order*/
+				{
+					count++;
+					
+					// calcule le bon index pour p (= offset, dans le tableau ff)
+					int p=_fniv[level+1]+(_endlev[level]+indexToC-cellID)*_nst[level]*_nsp[level];
+					p = p + indexToC;
+					
+					// ecrit dans globalSendBuffer les nst(niveau) x nsp(niveau) complexes, de cellID, depuis FF
+					for (int st=0; st<_nst[level]; st++)
+					{
+						for (int sp=0; sp<_nsp[level];  sp++)
+						{
+							p++;
+							q++;
+							_globalSendBuffer[q]=ff[p];
+						}
+					}
+				}
+			}
+			
+			// if something to send
+			if (count > 0)
+			{
+				// local offset
+				gaspi_offset_t local_dest_offset = _sendBufferIndexes[dest] * sizeof(complex);
+				gaspi_offset_t level_offset = _offsetKeeper[dest] * sizeof(complex);
+				gaspi_offset_t local_offset = local_dest_offset + level_offset;
+				
+				// remote offset
+				gaspi_offset_t remote_sender_offset = _remoteBufferIndexes[dest] * sizeof(complex);
+				gaspi_offset_t remote_offset = remote_sender_offset + level_offset;
+
+				// update offset, per destinatary
+				_offsetKeeper[dest] += count * _nst[level] * _nsp[level];
+
+				int rankMultiple = 5;
+				gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
+				gaspi_notification_id_t notifyID = notif_offset + _rank;
+				gaspi_size_t qty= count * _nst[level] * _nsp[level] * sizeof(complex);
+				
+				SUCCESS_OR_DIE(
+					gaspi_write_notify( 
+						_seg_globalSendBuffer_id,			// local seg ID
+						local_offset,						// local offset
+						dest,								// receiver rank
+						_seg_globalRecvBuffer_id,			// remote seg ID
+						remote_offset,						// remote offset
+						qty,								// size of data to write
+						notifyID,							// remote notif ID
+						level,								// value of the notif to write
+						queue,								// queue
+						GASPI_BLOCK							// Gaspi block
+					)
+				);
+			}
+		}
+		// RAZ if necessary 
+		// FIXME a deplacer après les envois de levcom
+		if (level == _levcom + indexToC)
+		{
+			_offsetKeeper[dest] = 0;
+		}
+	}
+	//debug
+	if (first)
+	{
+
+		if (level == _levcom + indexToC)
+		{
+			dumpBuffer<complex>(_rank, _globalSendBuffer, _seg_globalSendBuffer_size/16, "globalSendBuffer", "levcom");
+			loadAndDiffData("/tmp_cci/EOD/CODE_OPTIM/d101219/SPECTRE/01_Optim_tests/DEV/07_gaspi_overlap/04_MPI/output/globalSendBuffer_"+ to_string((long long)_rank) + ".txt", 
+							"/tmp_cci/EOD/CODE_OPTIM/d101219/SPECTRE/01_Optim_tests/DEV/06_Gaspi/dronera/04_MPI/output/globalSendBuffer_" + to_string((long long)_rank) + ".txt");
+		first = 0;
 		}
 	}
 }

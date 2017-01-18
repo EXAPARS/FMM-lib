@@ -266,47 +266,76 @@ string convert(int a)
 	return to_string((long long)(a));
 }
 
-/*
-static void wait_if_queue_full(const gaspi_queue_id_t queue_id,  gaspi_number_t request_size)
+
+void loadAndDiffData(const string & file1, const string & file2)
 {
-    // wait until request_size fits in queue
-	gaspi_number_t queue_size_max; 
-	SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
-	
-	gaspi_number_t queue_size; 
-	SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
-	
-	if (request_size == 0)
-		request_size = queue_size_max - queue_size_max/2;
-    
-    const uint64_t msg_interval = 1000;//ms
-    uint64_t wait_start = rdtsc(); 
-    uint64_t next_msg = msg_interval;
-    
-    while (queue_size + request_size >= queue_size_max)
-    {
-		gaspi_return_t e = gaspi_wait(queue_id,2);
-		if (e == GASPI_SUCCESS) 
-			break;
-		if (e != GASPI_TIMEOUT) 
-			SUCCESS_OR_DIE(e);
+	double diffMax = 0.001;
+	fstream in1, in2;
+	in1.exceptions(ifstream::failbit|ifstream::badbit);
+	in2.exceptions(ifstream::failbit|ifstream::badbit);
+	try
+	{
+		in1.open(file1, ifstream::in);
+		in2.open(file2, ifstream::in);
+
+		// get number of lines
+		int nb1 = std::count(std::istreambuf_iterator<char>(in1), std::istreambuf_iterator<char>(), '\n');
+		int nb2 = std::count(std::istreambuf_iterator<char>(in2), std::istreambuf_iterator<char>(), '\n');
+		
+		nb1--;
+		nb2--;
+		
+		if (nb1 == nb2)
+		{
+			// alloc arrays
+			double * data1 = new double[nb1];
+			double * data2 = new double[nb2];			
 			
-		uint64_t wait_time = rdtsc() - wait_start;
-        
-        if (wait_time / (TITUS_PROC_FREQ/1000) > next_msg)
-        {
-            next_msg += msg_interval;
-            TITUS_DBG << "wait_if_queue_full : WARNING : waiting for queue to flush for " << (rdtsc() - wait_start) / (TITUS_PROC_FREQ/1000) 
-					  << "ms (" << queue_size << " / " << queue_size_max << " elts in queue)" 
-						<< std::endl;
-        }
+			// load data into arrays
+			in1.seekg(0, ios::beg);
+			in2.seekg(0, ios::beg);
+			double tmp1, tmp2;
 
-        gaspi_number_t queue_size_max; 
-		SUCCESS_OR_DIE(gaspi_queue_size_max(&queue_size_max));
-        gaspi_number_t queue_size; 
-		SUCCESS_OR_DIE(gaspi_queue_size(queue_id, &queue_size));
-    }
-}*/
+			int index = 0;
+			while (index < nb1)
+			{
 
-
+				in1 >> tmp1;
+				in2 >> tmp2;
+				data1[index] = tmp1;
+				data2[index] = tmp2;
+				index++;
+			}
+			
+			// check
+			cout << "Verification at "<< diffMax << endl;
+			int cpt = 0;
+			vector<int> memo;
+			for (int i=0; i<nb1; i++)
+			{
+				if (abs(data1[i] - data2[i]) > diffMax)
+				{
+					cpt++;
+					memo.push_back(i);
+				}
+			}
+			
+			if (cpt == 0)
+				cout << "Verification OK" << endl;
+			else
+			{
+				cout << cpt << " values did not pass the test at : " << diffMax << endl;
+			}
+			
+		}	
+		in1.close();
+		in2.close();
+	}
+	catch(ifstream::failure e)
+	{
+		cerr << "[erreur] " << e.what() << endl;
+		exit(0);
+	}
+	
+}
 

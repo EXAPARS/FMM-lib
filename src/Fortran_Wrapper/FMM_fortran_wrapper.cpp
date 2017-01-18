@@ -240,7 +240,16 @@ void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size,
 							i64 * nb_recv, 	i64 * nb_recv_sz,
 							i64 * nb_send, 	i64 * nb_send_sz)
 {
+	cout << "HANDLE ALLREDUCE GASPI"<< endl;
+	
+	// Switch to gaspi
 	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+    MPI_Barrier(MPI_COMM_WORLD);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+
+
 	// DEBUG
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
@@ -278,6 +287,8 @@ void fmm_handle_allreduce_gaspi_hack_(complex * ff, complex * ne, i64 * size,
 							i64 * nb_recv, 	i64 * nb_recv_sz,
 							i64 * nb_send, 	i64 * nb_send_sz)
 {
+	cout << "HANDLE ALLREDUCE GASPI HACK "<< endl;
+	
 	double t_begin, t_end;
 	// DEBUG
 	gaspi_rank_t _wsize;
@@ -328,7 +339,8 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 i64 * endlev,		i64 * codech,
 							 complex * bufsave)
 {
-	cout << "M2L send/recv gaspi - BULK" << endl;
+	//cout << "HANDLE M2L SEND/RECV GASPI BULK"<< endl;
+	
 	double t_begin, t_end;
 
 	// DEBUG
@@ -341,18 +353,20 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 	t_begin = MPI_Wtime();
 	gCommM2L->runM2LCommunications(bufsave, ff);								
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_sendRecv", t_end - t_begin);
+	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
 	
-	// Rend la main au MPI
+	// Switch to MPI
 	t_begin = MPI_Wtime();
     SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
 }
 
-void gaspi_send_ff_(i64 * niv)
+void gaspi_send_ff_(i64 * niv, complex * ff)
 {
-	cout << "M2L send/recv gaspi - OVERLAP" << endl;
+	//cout << "HANDLE M2L SEND/RECV GASPI OVERLAP"<< endl;
+	
+	//cout << "M2L send/recv gaspi - OVERLAP - niv : " << *niv << endl;
 
 	// DEBUG
 	gaspi_rank_t _wsize;
@@ -363,21 +377,38 @@ void gaspi_send_ff_(i64 * niv)
 	// run M2L Gaspi writes
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
-	//gCommM2L->runM2LCommunications(bufsave, ff);								
+	
+	gCommM2L->send_ff_level((int)(*niv)-1, ff);
+	
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_FF_write", t_end - t_begin);
 	
+
+}
+
+void fmm_switch_to_mpi_()
+{
 	// Rend la main au MPI
+	double t_begin, t_end;
 	t_begin = MPI_Wtime();
     SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
 }
 
+void fmm_switch_to_gaspi_()
+{
+	// Passe la main au Gaspi
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+    MPI_Barrier(MPI_COMM_WORLD);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+}
 
 void fmm_handle_unknowns_allreduce_()
 {
-	cout << "M2L allReduce GASPI" << endl;
+	cout << "unk allReduce GASPI" << endl;
 	
 	// run allreduce
 	double t_begin, t_end;
