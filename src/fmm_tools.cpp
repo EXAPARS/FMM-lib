@@ -269,7 +269,7 @@ string convert(int a)
 
 void loadAndDiffData(const string & file1, const string & file2)
 {
-	double diffMax = 0.001;
+	double diffMax = 0.1;
 	fstream in1, in2;
 	in1.exceptions(ifstream::failbit|ifstream::badbit);
 	in2.exceptions(ifstream::failbit|ifstream::badbit);
@@ -327,7 +327,11 @@ void loadAndDiffData(const string & file1, const string & file2)
 				cout << cpt << " values did not pass the test at : " << diffMax << endl;
 			}
 			
-		}	
+		}
+		else
+		{
+			cout << "Verification aborted : Files don't have the same size !" << endl;
+		}
 		in1.close();
 		in2.close();
 	}

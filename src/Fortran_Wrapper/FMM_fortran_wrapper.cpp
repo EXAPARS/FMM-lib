@@ -207,12 +207,13 @@ void init_gaspi_ff_communicator_(
 							i64 * endlev,		i64 * codech, 
 							i64 * ff_sz) 
 {
-	// Passage en Gaspi
+	/*// Passage en Gaspi
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
     MPI_Barrier(MPI_COMM_WORLD);
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);*/
+	fmm_switch_to_gaspi_();
 	
 	// Construction du communicateur Gaspi M2L, si nécessaire
 	int indexToC = -1;
@@ -230,8 +231,9 @@ void init_gaspi_ff_communicator_(
 			//ff, 
 			ne, (int)(*allreduce_sz),
 			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, (int)(*ff_sz),
-			gCommM2L);
+			gCommM2L);	
 	}
+	fmm_switch_to_mpi_();	
 }
 
 void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
@@ -339,7 +341,7 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 i64 * endlev,		i64 * codech,
 							 complex * bufsave)
 {
-	//cout << "HANDLE M2L SEND/RECV GASPI BULK"<< endl;
+	cout << "HANDLE M2L SEND/RECV GASPI BULK"<< endl;
 	
 	double t_begin, t_end;
 
@@ -364,26 +366,34 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 
 void gaspi_send_ff_(i64 * niv, complex * ff)
 {
-	//cout << "HANDLE M2L SEND/RECV GASPI OVERLAP"<< endl;
+	// switch to gaspi
+	fmm_switch_to_gaspi_();
 	
-	//cout << "M2L send/recv gaspi - OVERLAP - niv : " << *niv << endl;
-
-	// DEBUG
-	gaspi_rank_t _wsize;
-	gaspi_rank_t _rank;
-	gaspi_proc_rank(&_rank);
-	gaspi_proc_num(&_wsize);
-		
 	// run M2L Gaspi writes
 	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-	
+	t_begin = MPI_Wtime();	
 	gCommM2L->send_ff_level((int)(*niv)-1, ff);
-	
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_FF_write", t_end - t_begin);
-	
+	add_time_sec("GASPI_FF_send", t_end - t_begin);
 
+	// switch back to mpi
+	fmm_switch_to_mpi_();	
+}
+
+void gaspi_recv_ff_(i64 * niv, complex * ff)
+{
+	// switch to gaspi
+	fmm_switch_to_gaspi_();
+	
+	// run M2L Gaspi wait for receptions and write back to ff
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();	
+	gCommM2L->recv_ff_level((int)(*niv)-1, ff);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_FF_recv_wb", t_end - t_begin);
+	
+	// switch back to mpi
+	fmm_switch_to_mpi_();
 }
 
 void fmm_switch_to_mpi_()

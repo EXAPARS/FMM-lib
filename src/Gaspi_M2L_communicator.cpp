@@ -36,16 +36,6 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_ff_sz = ff_sz;
 	_allRed_ff_idx = _fniv[_levcom]; //fniv[l+1+indexToC]+1+indexToC
 
-	
-	// print_gaspi_config();
-	if (_rank == 1)
-	{
-		cout << "nbsend[0] = " << _nb_send[0] << endl;
-		cout << "nbsend[1] = " << _nb_send[1] << endl;
-		cout << "nbsend[2] = " << _nb_send[2] << endl;
-		cout << "nbsend[3] = " << _nb_send[3] << endl;
-	}
-
 	// update segments ids
 	_seg_ff_allreduce_id			= 15;
 	_seg_ne_allreduce_id			= 16;
@@ -64,7 +54,9 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	create_remoteBufferIndexes(recvnode, recvnode_sz, nb_recv);
 	create_globalSendBuffer(nb_send, nb_send_sz);
 	init_sendBufferIndexes(sendnode, sendnode_sz, nb_send);
-
+	
+	// DEV
+	init_nbExchangeArrays();
 }
 
 void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce)
@@ -100,7 +92,6 @@ void Gaspi_m2l_communicator::create_allReduceBuffers(complex * ff, complex * ne,
 	// user pointers
 	_reduceNE= (complex *)_ptr_seg_ne_allreduce;
 	_reduceFF = (complex *) _ptr_seg_ff_allreduce;
-	//cout << _rank << " " << "@ de _reduceFF[_allRed_ff_idx] : " << &_reduceFF[_allRed_ff_idx] << endl;
 	
 	
 	// class size attributes
@@ -306,10 +297,7 @@ void Gaspi_m2l_communicator::create_globalSendBuffer(i64 * nb_send, int nb_send_
 	_globalSendBuffer = (complex *)_ptr_seg_globalSendBuffer;
 }
 
-void Gaspi_m2l_communicator::initGlobalSendSegment(
-	/*i64 * sendnode, int sendnode_sz, i64 * nb_send, 
-	int nivterm, int levcom, i64 * fsend, i64 * send, i64 * endlev,
-	i64 * codech, i64 * nst, i64 * nsp, */complex * bufsave,/* i64 * fniv,*/ complex * ff)
+void Gaspi_m2l_communicator::initGlobalSendSegment(complex * bufsave, complex * ff)
 {
 	int indexToC = -1;
 	static int first = 1;
@@ -405,6 +393,51 @@ void Gaspi_m2l_communicator::initGlobalSendSegment(
 	first = 0;
 }
 
+void Gaspi_m2l_communicator::init_nbExchangeArrays()
+{
+	int indexToC = -1;
+	
+	// alloc
+	_nbToRecvPerSrcAndLevel = new int* [_wsize]();
+	for (int i=0; i<(_wsize); i++)
+		_nbToRecvPerSrcAndLevel[i] = new int[_nivterm]();
+	
+	// fill
+	for (int src=0; src<_wsize; src++)
+	{
+		if (src != _rank)
+		{
+			// box range to recv, FROM RECV ARRAY
+			int firstBoxToRecvIdx= _frecv[src] + indexToC;
+			int lastBoxToRecvIdx = _frecv[src+1]-1 + indexToC;
+							 
+			// for each box, find the corresponding level
+			for (int k = firstBoxToRecvIdx; k<=lastBoxToRecvIdx; k++)
+			{
+				int cellID = _recv[k] + indexToC;					
+				
+				// go through octree levels
+				int found = 0;
+				int level = _levcom + 1 + indexToC;
+				while ( (level<=_nivterm+indexToC) && (!found))
+				{
+					// test if box belongs to level 
+					if ( (cellID > _endlev[level-1]+indexToC) && (cellID <= _endlev[level]+indexToC) )
+					{
+						found = 1;
+						_nbToRecvPerSrcAndLevel[src][level]++;
+					}
+					level++;
+				}
+				if (!found)
+				{
+					cout << "ERROR [Gaspi_m2l_communicator::init_nbExchangeArrays]: cell level has not been identified !" << endl;
+					exit(-1);
+				}
+			}
+		}
+	}
+}
 
 void Gaspi_m2l_communicator::initAllReduceBuffers(
 	complex * ff, complex * ne)
@@ -597,12 +630,6 @@ void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * f
 						GASPI_BLOCK							// Gaspi block
 					)
 				);
-				
-				if (_rank == 1)
-				{
-					cout << "1 sends to : " << i << " " << int(qty)/sizeof(complex) << " terms" << endl;
-				}
-				//register_write(_rank, i, qty);
 			}
 			else // no data to send, notify anyway
 			{
@@ -686,7 +713,7 @@ void Gaspi_m2l_communicator::runM2LCommunications(complex * bufsave, complex * f
 
 void Gaspi_m2l_communicator::send_ff_level(int level, complex * ff)
 {
-	static int first = 0;
+	static int first = 1;
 	int indexToC = -1;
 	gaspi_queue_id_t queue=0;
 	
@@ -703,11 +730,9 @@ void Gaspi_m2l_communicator::send_ff_level(int level, complex * ff)
 	}
 	else if (queueSize >= queueSizeMax/2) 
 	{
-		cout << "--- FLUSH --- queue : " << int(queue) << endl;
 		SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
 	}
 	/* Attention si 512 MPI, queue déjà pleine ... */
-	
 	
 	// pour chaque voisin
 	for (int dest=0; dest<_wsize; dest++)
@@ -763,10 +788,11 @@ void Gaspi_m2l_communicator::send_ff_level(int level, complex * ff)
 				gaspi_offset_t remote_sender_offset = _remoteBufferIndexes[dest] * sizeof(complex);
 				gaspi_offset_t remote_offset = remote_sender_offset + level_offset;
 
+
 				// update offset, per destinatary
 				_offsetKeeper[dest] += count * _nst[level] * _nsp[level];
 
-				int rankMultiple = 5;
+				int rankMultiple = level;
 				gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
 				gaspi_notification_id_t notifyID = notif_offset + _rank;
 				gaspi_size_t qty= count * _nst[level] * _nsp[level] * sizeof(complex);
@@ -787,26 +813,68 @@ void Gaspi_m2l_communicator::send_ff_level(int level, complex * ff)
 				);
 			}
 		}
-		// RAZ if necessary 
-		// FIXME a deplacer après les envois de levcom
-		if (level == _levcom + indexToC)
+		
+		// RAZ if necessary // check if ? FIXME a deplacer après les envois de levcom
+		if (level == _levcom + 1 + indexToC)
 		{
 			_offsetKeeper[dest] = 0;
 		}
 	}
-	//debug
-	if (first)
-	{
+}
 
-		if (level == _levcom + indexToC)
+void Gaspi_m2l_communicator::recv_ff_level(int level, complex * ff)
+{
+	// wait to receive all infos
+	int nbRecvExpected = 0;
+	for (int i=0; i<_wsize; i++)
+		nbRecvExpected += (_nbToRecvPerSrcAndLevel[i][level]>0);
+	
+	int rankMultiple = level;
+	gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
+	gaspi_notification_id_t new_notif_id;
+	gaspi_notification_t new_notif_val;
+	int recvCpt = 0;
+	int sender;
+
+	while (recvCpt < nbRecvExpected)
+	{
+		
+		//methode 1 - avec GASPI_BLOCK
+		// ne surveille que les notifs du level
+		while(1)
 		{
-			dumpBuffer<complex>(_rank, _globalSendBuffer, _seg_globalSendBuffer_size/16, "globalSendBuffer", "levcom");
-			loadAndDiffData("/tmp_cci/EOD/CODE_OPTIM/d101219/SPECTRE/01_Optim_tests/DEV/07_gaspi_overlap/04_MPI/output/globalSendBuffer_"+ to_string((long long)_rank) + ".txt", 
-							"/tmp_cci/EOD/CODE_OPTIM/d101219/SPECTRE/01_Optim_tests/DEV/06_Gaspi/dronera/04_MPI/output/globalSendBuffer_" + to_string((long long)_rank) + ".txt");
-		first = 0;
+			SUCCESS_OR_DIE(
+				gaspi_notify_waitsome(
+					_seg_globalRecvBuffer_id,
+					notif_offset,				// surveille les notifications depuis 0
+					_wsize,						// en surveille wsize
+					&new_notif_id,
+					GASPI_BLOCK
+				)
+			);
+			
+			SUCCESS_OR_DIE(
+				gaspi_notify_reset(
+					_seg_globalRecvBuffer_id, 
+					new_notif_id, 
+					&new_notif_val
+				)
+			);
+			
+			if (new_notif_val) 
+				break;
+		}
+		
+		// test the notification value and compare with array (I know, useless)
+		if (new_notif_val)
+		{
+			recvCpt++;
+			sender = new_notif_id - notif_offset;
+			updateFarFields(sender, level, ff);
 		}
 	}
 }
+
 
 void Gaspi_m2l_communicator::updateFarFields(int src, complex * ff)
 {		
@@ -845,6 +913,50 @@ void Gaspi_m2l_communicator::updateFarFields(int src, complex * ff)
 					ff[pp + indexToC] = ff[pp + indexToC] + _globalRecvBuffer[qp];
 				}
 			}
+		}
+	}
+}
+
+void Gaspi_m2l_communicator::updateFarFields(int src, int level, complex * ff)
+{		
+	int indexToC = -1;
+	int k = level + 1;
+	
+	// calcul de l'offset	
+	int levelOffset = 0;
+	for (int i=_nivterm+indexToC; i>level; i--)
+	{
+		levelOffset += _nst[i]*_nsp[i]*_nbToRecvPerSrcAndLevel[src][i];
+	}
+	int q = _globalRecvBufIdxPerRank[src]-1; // se mettre 1 case avant l'index à lire
+	q += levelOffset; 	
+
+	// box range to recv, FROM RECV ARRAY
+	int firstBoxToRecvIdx= _frecv[src] + indexToC;
+	int lastBoxToRecvIdx = _frecv[src+1]-1 + indexToC;
+	
+	int cpt = 0;	
+	for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
+	{
+		int cellID = _recv[j] + indexToC;
+	
+		// test if box belongs to level 
+		if ( (cellID > _endlev[level-1]+indexToC) && (cellID <= _endlev[level]+indexToC) )
+		{
+			// update far fields
+			int p = _fniv[level+1]+(_endlev[level]+indexToC-cellID)*_nst[level]*_nsp[level];
+			p = p + indexToC;
+			
+			for (int st=0; st<_nst[level]; st++)
+			{
+				for (int sp=0; sp<_nsp[level]; sp++)
+				{
+					p++;
+					q++;
+					ff[p] = ff[p] + _globalRecvBuffer[q];
+				}
+			}
+			cpt++;
 		}
 	}
 }

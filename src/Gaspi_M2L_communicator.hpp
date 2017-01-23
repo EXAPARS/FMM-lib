@@ -84,6 +84,7 @@ public:
     // other arrays
     int * _sendBufferIndexes = nullptr;
     int * _offsetKeeper = nullptr;
+    int ** _nbToRecvPerSrcAndLevel = nullptr;
     
     /* arrays from Fortran*/
     int _nivterm;					// hauteur de l'octree = dernier niveau de l'arbre
@@ -131,10 +132,14 @@ public:
 
 	void initGlobalSendSegment(complex * bufsave, complex * ff);
 	void initAllReduceBuffers(complex * ff, complex * ne);
+	void init_nbExchangeArrays();
 	void updateFarFields(int src, complex * ff);
+	void updateFarFields(int src, int level, complex * ff);
+
 	
 	// gaspi overlap
 	void send_ff_level(int level, complex * ff);
+	void recv_ff_level(int level, complex * ff);
 };
 
 void construct_m2l_communicator(

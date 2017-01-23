@@ -104,6 +104,7 @@ extern "C"
 	
 	// gaspi overlap
 	void gaspi_send_ff_(i64 * niv, complex * ff);
+	void gaspi_recv_ff_(i64 * niv, complex * ff);
 
 	// switches
 	void fmm_switch_to_gaspi_();
