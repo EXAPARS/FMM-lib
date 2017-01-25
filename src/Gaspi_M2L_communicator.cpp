@@ -49,7 +49,7 @@ Gaspi_m2l_communicator::Gaspi_m2l_communicator(
 	_offsetKeeper = new int[_wsize]();
 	
 	// create gaspi segments, and initialize them
-	create_allReduceBuffers(ff, ne, nbEltsToReduce);
+	//create_allReduceBuffers(ff, ne, nbEltsToReduce);
 	create_globalRecvBuffer(nb_recv, nb_recv_sz);
 	create_remoteBufferIndexes(recvnode, recvnode_sz, nb_recv);
 	create_globalSendBuffer(nb_send, nb_send_sz);

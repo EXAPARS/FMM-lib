@@ -43,7 +43,7 @@ set (BOOST_LIB
 set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
 
 # ---------------- GASPI
-set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2-Hack")
+set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
 set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
 set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")

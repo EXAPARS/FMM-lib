@@ -36,7 +36,6 @@ static vec3D * elements = nullptr;
 static Gaspi_m2l_communicator * gCommM2L = nullptr;
 static Gaspi_unknowns_communicator * gCommUNK = nullptr;
 
-
 /**
 * This function updates the elements array by computing the gravity center of each element.
 * @param elemToNode : For each element, number of nodes f indexes of each node
@@ -196,23 +195,18 @@ void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
 
 void init_gaspi_ff_communicator_(
 							i64 * recvnode,	i64 * recvnode_sz,
-							i64 * sendnode, 	i64 * sendnode_sz,
+							i64 * sendnode,	i64 * sendnode_sz,
 							i64 * nb_recv, 	i64 * nb_recv_sz,
 							i64 * nb_send, 	i64 * nb_send_sz,
 							i64 * nivterm,	i64 * levcom,
 							i64 * fniv,		i64 * nst,			i64 * nsp,
-							complex * ff, complex * ne, i64 * allreduce_sz,
-							i64 * fsend, 		i64 * send,
-							i64 * frecv,		i64 * recv,
-							i64 * endlev,		i64 * codech, 
-							i64 * ff_sz) 
+							complex * ff, 	complex * ne, 		i64 * allreduce_sz,
+							i64 * fsend, 	i64 * send,
+							i64 * frecv,	i64 * recv,
+							i64 * endlev,	i64 * codech, 
+							i64 * ff_sz)
 {
-	/*// Passage en Gaspi
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-    MPI_Barrier(MPI_COMM_WORLD);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);*/
+	// switch to Gaspi
 	fmm_switch_to_gaspi_();
 	
 	// Construction du communicateur Gaspi M2L, si nécessaire
@@ -228,12 +222,12 @@ void init_gaspi_ff_communicator_(
 			recvnode, (int)(*recvnode_sz),
 			(int)(*nivterm), (int)(*levcom),
 			&ff[fniv[l]],
-			//ff, 
 			ne, (int)(*allreduce_sz),
 			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, (int)(*ff_sz),
 			gCommM2L);	
 	}
-	fmm_switch_to_mpi_();	
+	// switch back to mpi
+	fmm_switch_to_mpi_();
 }
 
 void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
@@ -367,7 +361,7 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 void gaspi_send_ff_(i64 * niv, complex * ff)
 {
 	// switch to gaspi
-	fmm_switch_to_gaspi_();
+	//fmm_switch_to_gaspi_();
 	
 	// run M2L Gaspi writes
 	double t_begin, t_end;
@@ -377,13 +371,13 @@ void gaspi_send_ff_(i64 * niv, complex * ff)
 	add_time_sec("GASPI_FF_send", t_end - t_begin);
 
 	// switch back to mpi
-	fmm_switch_to_mpi_();	
+	// fmm_switch_to_mpi_();
 }
 
 void gaspi_recv_ff_(i64 * niv, complex * ff)
 {
 	// switch to gaspi
-	fmm_switch_to_gaspi_();
+	// fmm_switch_to_gaspi_();
 	
 	// run M2L Gaspi wait for receptions and write back to ff
 	double t_begin, t_end;
@@ -393,7 +387,7 @@ void gaspi_recv_ff_(i64 * niv, complex * ff)
 	add_time_sec("GASPI_FF_recv_wb", t_end - t_begin);
 	
 	// switch back to mpi
-	fmm_switch_to_mpi_();
+	//fmm_switch_to_mpi_();
 }
 
 void fmm_switch_to_mpi_()
