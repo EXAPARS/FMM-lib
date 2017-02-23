@@ -26,91 +26,29 @@ using namespace std;
 
 
 // Global variables
-static Gaspi_m2l_communicator * gCommM2L = nullptr;
-static Gaspi_unknowns_communicator * gCommUNK = nullptr;
+static Gaspi_FF_communicator * gCommFF = nullptr;
 
-
-void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
+// start stop switch 
+void fmm_gaspi_init_()
 {
-	// Passage en Gaspi
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
-	
-	// First call : Class instantiation, allocations and Gaspi segment creation
-	if (! gCommUNK)
-	{	
-		gCommUNK = new Gaspi_unknowns_communicator(xtmp, xtmp2, (int) (*size));
-	}
-	
-	// run broadcast
-	gCommUNK->runBroadcastUnknowns();
+	MPI_Barrier(MPI_COMM_WORLD); 
+	SUCCESS_OR_DIE (gaspi_proc_init (GASPI_BLOCK));
+	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_broadcast", t_end - t_begin);
+	add_time_sec("GASPI_proc_init", t_end - t_begin);
+	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);	
 }
 
-void init_gaspi_ff_communicator_(
-							i64 * recvnode,	i64 * recvnode_sz,
-							i64 * sendnode,	i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz,
-							i64 * nivterm,	i64 * levcom,
-							i64 * fniv,		i64 * nst,			i64 * nsp,
-							complex * ff, 	complex * ne, 		i64 * allreduce_sz,
-							i64 * fsend, 	i64 * send,
-							i64 * frecv,	i64 * recv,
-							i64 * endlev,	i64 * codech, 
-							i64 * ff_sz)
+void fmm_gaspi_finalize_()
 {
-	// switch to Gaspi
-	fmm_switch_to_gaspi_();
-	
-	// Construction du communicateur Gaspi M2L, si nécessaire
-	int indexToC = -1;
-	int l = (int)(*levcom);
-	
-	if (! gCommM2L)
-	{
-    	construct_m2l_communicator(
-			nb_send, (int)(*nb_send_sz), 
-			nb_recv, (int)(*nb_recv_sz),
-			sendnode, (int)(*sendnode_sz),
-			recvnode, (int)(*recvnode_sz),
-			(int)(*nivterm), (int)(*levcom),
-			/*&ff[fniv[l]],
-			ne, (int)(*allreduce_sz),*/
-			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, /*(int)(*ff_sz),*/
-			gCommM2L);	
-	}
-	// switch back to mpi
-	fmm_switch_to_mpi_();
-}
-
-void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
-							 i64 * sendnode, 	i64 * sendnode_sz,
-							 i64 * nb_recv, 	i64 * nb_recv_sz,
-							 i64 * nb_send, 	i64 * nb_send_sz,
-							 i64 * nivterm, 
-							 i64 * levcom, 
-							 i64 * fniv, 
-							 i64 * nst, 
-							 i64 * nsp,
-							 complex * ff,
-							 i64 * fsend, 		i64 * send,
-							 i64 * frecv,		i64 * recv,
-							 i64 * endlev,		i64 * codech,
-							 complex * bufsave)
-{
-	gCommM2L->runM2LCommunications(bufsave, ff);
-}
-
-void gaspi_send_ff_(i64 * niv, complex * ff)
-{
-	gCommM2L->send_ff_level((int)(*niv)-1, ff);
-}
-
-void gaspi_recv_ff_(i64 * niv, complex * ff)
-{
-	gCommM2L->recv_ff_level((int)(*niv)-1, ff);
+	// TODO - dealloc les segments dans le destructeur, appelé seulement à la fin du programme
+	delete gCommFF;
+	MPI_Barrier(MPI_COMM_WORLD);
+	SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));	
+	SUCCESS_OR_DIE(gaspi_proc_term(GASPI_BLOCK));
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void fmm_switch_to_mpi_()
@@ -136,6 +74,69 @@ void fmm_switch_to_gaspi_()
 	
 }
 
+// Init
+void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
+	i64 * sendnode, i64 * sendnode_sz, i64 * nb_recv, i64 * nb_recv_sz,
+	i64 * nb_send, i64 * nb_send_sz, i64 * nivterm, i64 * levcom,
+	i64 * fniv, i64 * nst, i64 * nsp, i64 * fsend, i64 * send,
+	i64 * frecv, i64 * recv, i64 * endlev,	i64 * codech, i64 * includeLevcom)
+{
+	// switch to Gaspi
+	fmm_switch_to_gaspi_();
+	
+	// Construction du communicateur Gaspi M2L, lors du 1er appel
+	if (! gCommFF)
+	{
+    	construct_m2l_communicator(
+			nb_send, (int)(*nb_send_sz), 
+			nb_recv, (int)(*nb_recv_sz),
+			sendnode, (int)(*sendnode_sz),
+			recvnode, (int)(*recvnode_sz),
+			(int)(*nivterm), (int)(*levcom),
+			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, (int)(*includeLevcom),
+			gCommFF);	
+	}
+	// switch back to mpi
+	fmm_switch_to_mpi_();
+}
+
+// FF
+void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave)
+{
+	gCommFF->exchangeFFBulk(bufsave, ff);
+}
+
+void gaspi_send_ff_(i64 * niv, complex * ff)
+{
+	gCommFF->send_ff_level((int)(*niv)-1, ff);
+}
+
+void gaspi_recv_ff_(i64 * niv, complex * ff)
+{
+	gCommFF->recv_ff_level((int)(*niv)-1, ff);
+}
+
+
+// Unk
+/*
+void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
+{
+	// Passage en Gaspi
+	double t_begin, t_end;
+	t_begin = MPI_Wtime();
+	
+	// First call : Class instantiation, allocations and Gaspi segment creation
+	if (! gCommUNK)
+	{	
+		gCommUNK = new Gaspi_UNK_communicator(xtmp, xtmp2, (int) (*size));
+	}
+	
+	// run broadcast
+	gCommUNK->runBroadcastUnknowns();
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_broadcast", t_end - t_begin);
+}
+
 void fmm_handle_unknowns_allreduce_()
 {
 	
@@ -152,29 +153,8 @@ void fmm_handle_unknowns_allreduce_()
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
 }
+*/
 
-
-void fmm_gaspi_init_()
-{
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-	MPI_Barrier(MPI_COMM_WORLD); 
-	SUCCESS_OR_DIE (gaspi_proc_init (GASPI_BLOCK));
-	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_proc_init", t_end - t_begin);
-	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);	
-}
-
-void fmm_gaspi_finalize_()
-{
-	// TODO - dealloc les segments dans le destructeur, appelé seulement à la fin du programme
-	delete gCommM2L;
-	MPI_Barrier(MPI_COMM_WORLD);
-	SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));	
-	SUCCESS_OR_DIE(gaspi_proc_term(GASPI_BLOCK));
-	MPI_Barrier(MPI_COMM_WORLD);
-}
 
 // debug tools
 void fmm_dump_(complex * tab)

@@ -16,8 +16,8 @@
   the FMM-lib. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GASPI_M2L_COMMUNICATOR
-#define GASPI_M2L_COMMUNICATOR
+#ifndef GASPI_FF_COMMUNICATOR
+#define GASPI_FF_COMMUNICATOR
 
 #include "GASPI.h"
 #include "Gaspi_tools.hpp"
@@ -27,10 +27,8 @@
 #include "../Tools/fmm_tools.hpp"
 #include <cilk/cilk.h>
 
-
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/byteCounter.hpp"
-
 
 
 #include <iostream>
@@ -42,7 +40,7 @@ using namespace std;
  *  data to send adresses : what to write
  */
 
-class Gaspi_m2l_communicator
+class Gaspi_FF_communicator
 {	
 public:
 	// segments sizes (in bytes for segment creation)
@@ -89,7 +87,7 @@ public:
     i64 * _nst = nullptr;			// nb d'angles en theta	
     i64 * _nsp = nullptr;			// nb d'angles en phi
     i64 * _endlev = nullptr;
-	i64 * _codech = nullptr;		// 	
+	i64 * _codech = nullptr;
 	i64 * _nb_send = nullptr;
 	i64 * _nb_recv = nullptr;
 	i64 * _sendnode = nullptr;
@@ -97,16 +95,15 @@ public:
 	int _nb_send_sz;
 	int _nb_recv_sz;
 	int _sendnode_sz;
-	int _recvnode_sz;    
+	int _recvnode_sz;
+	int _incLevcom;
+	
+	int _nbQueues;   
 
 public:
-	Gaspi_m2l_communicator(
-		i64 * nb_send, int nb_send_sz, 
-		i64 * nb_recv, int nb_recv_sz,
-		i64 * sendnode, int sendnode_sz,
-		i64 * recvnode, int recvnode_sz,
-		int nivterm, int levcom,
-		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech);
+	Gaspi_FF_communicator(i64 * nb_send, int nb_send_sz, i64 * nb_recv, int nb_recv_sz, i64 * sendnode, int sendnode_sz,
+		i64 * recvnode, int recvnode_sz, int nivterm, int levcom, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, 
+		i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, int includeLevcom);
 
 	void create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce);
 	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
@@ -114,15 +111,13 @@ public:
 	void create_globalSendBuffer(i64 * nb_send, int nb_send_sz);
 	void init_sendBufferIndexes(i64 * sendnode, int sendnode_sz, i64 * nb_send);	
 	
-	//void runM2LallReduce(complex * ff, complex * ne);
-	void runM2LCommunications (complex * bufsave, complex * ff);
+	void exchangeFFBulk (complex * bufsave, complex * ff);
 
 	void initGlobalSendSegment(complex * bufsave, complex * ff);
 	void initAllReduceBuffers(complex * ff, complex * ne);
 	void init_nbExchangeArrays();
 	void updateFarFields(int src, complex * ff);
 	void updateFarFields(int src, int level, complex * ff);
-
 	
 	// gaspi overlap
 	void send_ff_level(int level, complex * ff);
@@ -137,7 +132,7 @@ void construct_m2l_communicator(
 	int nivterm, int levcom,
 	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, 
 	i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech,
-	Gaspi_m2l_communicator *& gCommM2L);
+	int includeLevcom, Gaspi_FF_communicator *& gCommFF);
 
 /**
  * GASPI TAGS - Notification values
@@ -147,13 +142,7 @@ void construct_m2l_communicator(
 #define REMOTE_ADDRESS 1
 
 // seg global recv buffer
-
-/* 
-values 0 to 31 reserved for the octree level
-*/
-
 #define SEND_DATA 100
 #define NO_DATA 101
-#define ALLREDUCE 102
 
 #endif

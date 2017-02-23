@@ -29,12 +29,9 @@ glm : apt-get install libglm-dev
 - Documentation Doxygen
 Graphviz : apt-get install graphViz
 
-
-
 Compilation :
 ===============
 1) Generation du Makefile avec cmake
-
 - dossier build
 cmake CMakeLists.txt
 Si cmake ne trouve pas mpi.h

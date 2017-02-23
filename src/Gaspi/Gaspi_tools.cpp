@@ -2,6 +2,7 @@
 using namespace std;
 
 
+/* Attention si 512 MPI, queue déjà pleine ... */
 void flush_queues(int nbQueues)
 {
 	   

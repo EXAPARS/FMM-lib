@@ -18,8 +18,8 @@
 
 #include "Gaspi_UNK_communicator.hpp"
 using namespace std;
-
-Gaspi_unknowns_communicator::Gaspi_unknowns_communicator(complex * xtmp, complex * xtmp2, int nbUnk)
+/*
+Gaspi_UNK_communicator::Gaspi_UNK_communicator(complex * xtmp, complex * xtmp2, int nbUnk)
 {
 	// update class attributes
 	gaspi_proc_rank(&_rank);
@@ -78,9 +78,9 @@ Gaspi_unknowns_communicator::Gaspi_unknowns_communicator(complex * xtmp, complex
 	_unknowns 		= (complex *) _ptr_seg_loc_unk;
 	_unknownsTmp 	= (complex *) _ptr_seg_loc_unk_tmp;
 	_globalUnknowns = (complex *) _ptr_seg_glob_unk;
-}
-
-void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
+}*/
+/*
+void::Gaspi_UNK_communicator::runAllReduceUnknowns()
 {
 	int nbQueues = 1;
 	int offsetMultiple = 4;
@@ -98,9 +98,10 @@ void::Gaspi_unknowns_communicator::runAllReduceUnknowns()
 	receive_allReduce(offsetMultiple, "GASPI_REDUCE_UNK", _nbUnknowns, _wsize, _seg_glob_unk_id, ALLREDUCE_UNKNOWNS, _unknowns, _globalUnknowns);
 }
 
-void Gaspi_unknowns_communicator::runBroadcastUnknowns()
+void Gaspi_UNK_communicator::runBroadcastUnknowns()
 {
 	int nbQueues = 1;
 	int offsetMultiple = 3;
 	broadcast_buffer(nbQueues, offsetMultiple, _nbUnknowns, sizeof(complex), _rank, _wsize, _seg_loc_unk_id, BROADCAST_UNKNOWNS);
 }
+*/

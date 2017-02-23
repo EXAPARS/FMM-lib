@@ -16,26 +16,25 @@
   the FMM-lib. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef GASPI_UNKNOWNS_COMMUNICATOR
-#define GASPI_UNKNOWNS_COMMUNICATOR
+#ifndef Gaspi_UNK_communicator
+#define Gaspi_UNK_communicator
 
 #include "GASPI.h"
 #include "Gaspi_tools.hpp"
 
 #include "mpi.h"
 #include "../Tools/types.hpp"
-#include "../Tools/Complex.hpp"
+/*#include "../Tools/Complex.hpp"
 #include "../Tools/fmm_tools.hpp"
-#include <cilk/cilk.h>
 
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/byteCounter.hpp"
-
+*/
 
 #include <iostream>
 using namespace std;
-
-class Gaspi_unknowns_communicator
+/*
+class Gaspi_UNK_communicator
 {	
 public:
 	// segments sizes (in bytes for segment creation)
@@ -63,28 +62,11 @@ public:
 	complex * _globalUnknowns = nullptr;
 	
 public:
-	Gaspi_unknowns_communicator(complex * xtmp, complex * xtmp2, int nbUnk);
+	//Gaspi_UNK_communicator(complex * xtmp, complex * xtmp2, int nbUnk);
+	Gaspi_UNK_communicator();
 	void runBroadcastUnknowns();
 	void runAllReduceUnknowns();
 	void receive_and_update_allReduce();
-};
-
-
-/**
- * GASPI TAGS - Notification values
- **/
-
-/* 
-// seg remoteIndexes
-#define REMOTE_ADDRESS 1
-// seg global recv bugger
-#define SEND_DATA 10
-#define NO_DATA 20
-#define ALLREDUCE 30
-*/
-
-// seg unknowns
-#define BROADCAST_UNKNOWNS 40
-#define ALLREDUCE_UNKNOWNS 50
+};*/
 
 #endif
