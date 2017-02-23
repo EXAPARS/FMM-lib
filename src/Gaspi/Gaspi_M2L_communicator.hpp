@@ -22,9 +22,9 @@
 #include "GASPI.h"
 #include "Gaspi_tools.hpp"
 #include "mpi.h"
-#include "types.hpp"
-#include "Complex.hpp"
-#include "fmm_tools.hpp"
+#include "../Tools/types.hpp"
+#include "../Tools/Complex.hpp"
+#include "../Tools/fmm_tools.hpp"
 #include <cilk/cilk.h>
 
 

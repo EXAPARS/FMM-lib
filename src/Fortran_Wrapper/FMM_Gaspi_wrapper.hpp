@@ -21,10 +21,9 @@
 
 #include "mpi.h"
 #include "GASPI.h"
-#include "Gaspi_tools.hpp"
-#include "Complex.hpp"
-#include "Gaspi_M2L_communicator.hpp"
-#include "Gaspi_UNK_communicator.hpp"
+#include "../Tools/Complex.hpp"
+#include "../Gaspi/Gaspi_M2L_communicator.hpp"
+#include "../Gaspi/Gaspi_UNK_communicator.hpp"
 
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 

@@ -28,10 +28,10 @@
 
 #include "Decomposition.hpp"
 #include "Gaspi_communicator.hpp"
-#include "types.hpp"
+#include "../Tools/types.hpp"
 #include "vec3D.hpp"
 
-#include "fmm_tools.hpp"
+#include "../Tools/fmm_tools.hpp"
 // TEMPORARILY USE a STL STACK
 #include <stack>
 

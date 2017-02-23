@@ -23,8 +23,8 @@
 #include <vector>
 #include <iostream>
 
-#include "types.hpp"
-#include "fmm_tools.hpp"
+#include "../Tools/types.hpp"
+#include "../Tools/fmm_tools.hpp"
 #include "vec3D.hpp"
 
 using namespace std;

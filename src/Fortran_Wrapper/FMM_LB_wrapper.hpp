@@ -21,16 +21,16 @@
 
 #include "mpi.h"
 
-#include "types.hpp"
-#include "fmm_tools.hpp"
-#include "vec3D.hpp"
-#include "Particles.hpp"
-#include "Node.hpp"
-#include "Decomposition.hpp"
-#include "LoadBalancerBase.hpp"
-#include "LoadBalancer.hpp"
-#include "LBMortonSyncMPI.hpp"
-#include "LBHistApprox.hpp"
+#include "../Tools/types.hpp"
+#include "../Tools/fmm_tools.hpp"
+#include "../LB/vec3D.hpp"
+#include "../LB/Particles.hpp"
+#include "../LB/Node.hpp"
+#include "../LB/Decomposition.hpp"
+#include "../LB/LoadBalancerBase.hpp"
+#include "../LB/LoadBalancer.hpp"
+#include "../LB/LBMortonSyncMPI.hpp"
+#include "../LB/LBHistApprox.hpp"
 
 
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
