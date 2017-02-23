@@ -61,8 +61,18 @@ add_library (
     ${FMM_src_list}
 )
 
+add_library (
+    fmm_dev
+    SHARED
+    ${FMM_src_list}
+)
+
 # ----------------  verbosity
 set (CMAKE_VERBOSE_MAKEFILE 1)
+
+# ----------------  defines
+target_compile_definitions (fmm_dev	PRIVATE -DDEV) 
+
 
 # ----------------  MPI
 find_package (MPI)
@@ -79,12 +89,29 @@ target_link_libraries(fmm
 	${BOOST_LIB}
 )
 
+target_link_libraries(fmm_dev
+	${MPI_LIBRARIES} 
+#	${GASPI_HACK_LIB}
+	${NMTOOLS_LIB}
+	${BOOST_LIB}
+)
+
 if(MPI_COMPILE_FLAGS)
   set_target_properties(fmm
   PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(fmm_dev
+  PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+
 if(MPI_LINK_FLAGS)
   set_target_properties(fmm
+  PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+if(MPI_LINK_FLAGS)
+  set_target_properties(fmm_dev
   PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()

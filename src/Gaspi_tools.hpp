@@ -37,6 +37,7 @@ void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultipl
 void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, int notifValue, complex * buffer, complex * globalBuffer);
 
+void gaspi_loop_broadcast();
 
 template <typename T>
 void copy_local_data(T * destBuffer, T * srcBuffer, int nbElts, string timingMsg)

@@ -173,21 +173,14 @@ void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size)
 	// Passage en Gaspi
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
-    MPI_Barrier(MPI_COMM_WORLD);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
 	
 	// First call : Class instantiation, allocations and Gaspi segment creation
 	if (! gCommUNK)
 	{	
-		t_begin = MPI_Wtime();
 		gCommUNK = new Gaspi_unknowns_communicator(xtmp, xtmp2, (int) (*size));
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_UNK_init_class_and_create_segments", t_end - t_begin);
 	}
 	
 	// run broadcast
-	t_begin = MPI_Wtime();
 	gCommUNK->runBroadcastUnknowns();
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_broadcast", t_end - t_begin);
@@ -335,27 +328,11 @@ void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz,
 							 i64 * endlev,		i64 * codech,
 							 complex * bufsave)
 {
-	cout << "HANDLE M2L SEND/RECV GASPI BULK"<< endl;
-	
+
 	double t_begin, t_end;
 
-	// DEBUG
-	gaspi_rank_t _wsize;
-	gaspi_rank_t _rank;
-	gaspi_proc_rank(&_rank);
-	gaspi_proc_num(&_wsize);
-		
 	// run M2L SEND/RECV 
-	t_begin = MPI_Wtime();
 	gCommM2L->runM2LCommunications(bufsave, ff);								
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
-	
-	// Switch to MPI
-	t_begin = MPI_Wtime();
-    SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
 }
 
 void gaspi_send_ff_(i64 * niv, complex * ff)
@@ -363,12 +340,19 @@ void gaspi_send_ff_(i64 * niv, complex * ff)
 	// switch to gaspi
 	//fmm_switch_to_gaspi_();
 	
+		// DEBUG
+	gaspi_rank_t _wsize;
+	gaspi_rank_t _rank;
+	gaspi_proc_rank(&_rank);
+	gaspi_proc_num(&_wsize);
+	
+	//cout << _rank << " sends level : " << (*niv-1) << endl; 
 	// run M2L Gaspi writes
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();	
+
 	gCommM2L->send_ff_level((int)(*niv)-1, ff);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_FF_send", t_end - t_begin);
+
+
+	//cout << _rank << " sends level : " << (*niv-1) << " --> OK]" << endl; 
 
 	// switch back to mpi
 	// fmm_switch_to_mpi_();
@@ -379,12 +363,17 @@ void gaspi_recv_ff_(i64 * niv, complex * ff)
 	// switch to gaspi
 	// fmm_switch_to_gaspi_();
 	
+	gaspi_rank_t _wsize;
+	gaspi_rank_t _rank;
+	gaspi_proc_rank(&_rank);
+	gaspi_proc_num(&_wsize);
+	
+	//cout << "\t\t\t\t\t\t" << _rank << " receives level : " << (*niv-1) << endl; 	
 	// run M2L Gaspi wait for receptions and write back to ff
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();	
+
 	gCommM2L->recv_ff_level((int)(*niv)-1, ff);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_FF_recv_wb", t_end - t_begin);
+
+	//cout << "\t\t\t\t\t\t" <<_rank << " receives level : " << (*niv-1) << "--> OK] " << endl; 	
 	
 	// switch back to mpi
 	//fmm_switch_to_mpi_();
@@ -397,7 +386,8 @@ void fmm_switch_to_mpi_()
 	t_begin = MPI_Wtime();
     SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin); 
+	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);	 
 }
 
 void fmm_switch_to_gaspi_()
@@ -408,11 +398,12 @@ void fmm_switch_to_gaspi_()
     MPI_Barrier(MPI_COMM_WORLD);
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin);
+	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
+	
 }
 
 void fmm_handle_unknowns_allreduce_()
 {
-	cout << "unk allReduce GASPI" << endl;
 	
 	// run allreduce
 	double t_begin, t_end;
@@ -438,21 +429,17 @@ void fmm_gaspi_init_()
 	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_proc_init", t_end - t_begin);
+	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);	
 }
 
 void fmm_gaspi_finalize_()
 {
 	// TODO - dealloc les segments dans le destructeur, appelé seulement à la fin du programme
 	delete gCommM2L;
-
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD);
 	SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));	
 	SUCCESS_OR_DIE(gaspi_proc_term(GASPI_BLOCK));
 	MPI_Barrier(MPI_COMM_WORLD);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_proc_term", t_end - t_begin);	
 }
 
 // debug tools

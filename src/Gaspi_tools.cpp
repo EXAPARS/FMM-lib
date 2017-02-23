@@ -4,10 +4,7 @@ using namespace std;
 
 void flush_queues(int nbQueues)
 {
-	
-	//double t_begin, t_end;
-	//t_begin = MPI_Wtime();
-    
+	   
     gaspi_queue_id_t queue=0;       
 	gaspi_number_t queueSizeMax;
 	gaspi_number_t queueSize;
@@ -22,7 +19,7 @@ void flush_queues(int nbQueues)
 		
 		// get size
 		SUCCESS_OR_DIE (gaspi_queue_size (queue, &queueSize));
-		cout << "queueSize : " << queueSize << endl;
+		//cout << "queueSize : " << queueSize << endl;
 		
 		// if too much, throw error
 		if (queueSize > queueSizeMax) 
@@ -35,16 +32,10 @@ void flush_queues(int nbQueues)
 		// if more than half, flush
 		else if (queueSize >= queueSizeMax/2) 
 		{
-			cout << "--- FLUSH --- queue : " << int(queue) << endl;
-			cout << "queueSize : " << queueSize << endl;
-			cout << "queueSizeMax/2 : " << queueSizeMax/2 << endl; 
 			SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
 		}
 	}
 	
-	// measure
-	//t_end = MPI_Wtime();
-	//add_time_sec("GASPI_REDUCE_UNK_flush_queue", t_end - t_begin);
 }
 
 
@@ -97,7 +88,7 @@ void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultipl
 void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfElem,
 	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, int notifValue)
 {
-	double t_begin, t_end;
+	//double t_begin, t_end;
 	
 	// flush
 	flush_queues(nbQueues);
@@ -133,10 +124,6 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 		queue=(queue+1)%nbQueues;
 	}
 
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_BROADCAST_write_notify", t_end - t_begin);
-	t_begin = MPI_Wtime();
-
 	// wait to receive the broadcasted unknowns array
 	if (_rank != 0)
 	{
@@ -147,7 +134,7 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 		//methode 1 - avec GASPI_BLOCK
 		while(1)
 		{
-			t_begin_loop = MPI_Wtime();
+			//t_begin_loop = MPI_Wtime();
 			SUCCESS_OR_DIE(
 				gaspi_notify_waitsome(
 					seg,
@@ -157,9 +144,6 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 					GASPI_BLOCK
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_BROADCAST_notify_waitsome", t_end_loop - t_begin_loop);
-			t_begin_loop = MPI_Wtime();
 			
 			SUCCESS_OR_DIE(
 				gaspi_notify_reset(
@@ -168,9 +152,7 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 					&new_notif_val
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_BROADCAST_notify_reset", t_end_loop - t_begin_loop);
-			
+
 			if (new_notif_val == notifValue) 
 				break;
 		}
@@ -247,6 +229,34 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 	t_end = MPI_Wtime();
 	add_time_sec(timingPrefix + "_write_back_unk", t_end - t_begin); 
 }
+
+/*void gaspi_loop_broadcast(int nbElts)
+{
+	flush_queues(nbQueues);
+	
+    // send infos  
+	gaspi_queue_id_t queue = 0;
+    gaspi_offset_t local_offset = 0;
+    gaspi_offset_t remote_offset = 0;
+   	gaspi_notification_id_t notif_offset = _wsize * offsetMultiple;    
+    gaspi_notification_id_t notifyID = notif_offset + _rank;
+    gaspi_size_t qty = nbElts * sizeOfElem;
+    
+    for (int i=0; i<nbElts; i+=255)
+    {
+		// tail
+		if (nbElts-1 <=255)
+		{
+			gaspi_broadcast()
+		}
+		else // chunk
+		{
+			255
+		}
+	}
+    
+    
+}*/
 
 /** CLEM GASPI TOOLS **/
 void print_gaspi_config()
