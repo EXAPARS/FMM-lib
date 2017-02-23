@@ -214,104 +214,14 @@ void init_gaspi_ff_communicator_(
 			sendnode, (int)(*sendnode_sz),
 			recvnode, (int)(*recvnode_sz),
 			(int)(*nivterm), (int)(*levcom),
-			&ff[fniv[l]],
-			ne, (int)(*allreduce_sz),
-			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, (int)(*ff_sz),
+			/*&ff[fniv[l]],
+			ne, (int)(*allreduce_sz),*/
+			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, /*(int)(*ff_sz),*/
 			gCommM2L);	
 	}
 	// switch back to mpi
 	fmm_switch_to_mpi_();
 }
-
-void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
-							i64 * recvnode, i64 * recvnode_sz, 
-							i64 * sendnode, i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz)
-{
-	cout << "HANDLE ALLREDUCE GASPI"<< endl;
-	
-	// Switch to gaspi
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-    MPI_Barrier(MPI_COMM_WORLD);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
-
-
-	// DEBUG
-	gaspi_rank_t _wsize;
-	gaspi_rank_t _rank;
-	gaspi_proc_rank(&_rank);
-	gaspi_proc_num(&_wsize);
-	
-	// First call : Class instantiation, allocations and Gaspi segment creation
-	if (! gCommM2L)
-	{	
-		cout << "ATTENTION !!! ---> Appel au constructeur du communicator M2L" << endl;
-		t_begin = MPI_Wtime();
-    	construct_m2l_communicator(
-							nb_send, (int)(*nb_send_sz), 
-							nb_recv, (int)(*nb_recv_sz),
-							sendnode, (int)(*sendnode_sz),
-							recvnode, (int)(*recvnode_sz),
-							0, 0,
-							ff, ne, (int)(*size),
-							nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0,
-							gCommM2L);
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_M2L_init_class_and_create_segments", t_end - t_begin);
-	}
-	
-	// run allReduce
-	t_begin = MPI_Wtime();
-	gCommM2L->runM2LallReduce(ff, ne);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_allReduce_ff", t_end - t_begin);
-}
-
-void fmm_handle_allreduce_gaspi_hack_(complex * ff, complex * ne, i64 * size, 
-							i64 * recvnode, i64 * recvnode_sz, 
-							i64 * sendnode, i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz)
-{
-	cout << "HANDLE ALLREDUCE GASPI HACK "<< endl;
-	
-	double t_begin, t_end;
-	// DEBUG
-	gaspi_rank_t _wsize;
-	gaspi_rank_t _rank;
-	gaspi_proc_rank(&_rank);
-	gaspi_proc_num(&_wsize);
-	
-	// First call : Class instantiation, allocations and Gaspi segment creation
-	if (! gCommM2L)
-	{	
-		cout << "ATTENTION !!! ---> Appel au constructeur du communicator M2L" << endl;
-		t_begin = MPI_Wtime();
-    	construct_m2l_communicator(
-							nb_send, (int)(*nb_send_sz), 
-							nb_recv, (int)(*nb_recv_sz),
-							sendnode, (int)(*sendnode_sz),
-							recvnode, (int)(*recvnode_sz),
-							0, 0,
-							ff, ne, (int)(*size),
-							nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0,
-							gCommM2L);
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_M2L_init_class_and_create_segments", t_end - t_begin);
-		cout << "Construction du communicateur ok" << endl;
-	}
-	
-	// run allReduce
-	t_begin = MPI_Wtime();
-	//gCommM2L->runM2LallReduce(ff, ne);
-	gCommM2L->runM2LallReduce_gaspi_hack(ff, ne);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_allReduce_ff", t_end - t_begin);
-}
-
 
 void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 							 i64 * sendnode, 	i64 * sendnode_sz,

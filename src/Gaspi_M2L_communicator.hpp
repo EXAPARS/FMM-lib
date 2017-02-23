@@ -50,36 +50,28 @@ public:
 	gaspi_size_t _seg_globalSendBuffer_size; 
     gaspi_size_t _seg_globalRecvBufIdxPerRank_size;    
     gaspi_size_t _seg_remoteBufferIndexes_size;
-    gaspi_size_t _seg_reduce_size;
 
 	// gaspi pointers on segments
 	gaspi_pointer_t _ptr_seg_globalRecvBuffer = nullptr;
     gaspi_pointer_t _ptr_seg_globalSendBuffer = nullptr;
 	gaspi_pointer_t _ptr_seg_globalRecvBufIdxPerRank = nullptr;
     gaspi_pointer_t _ptr_seg_remoteBufferIndexes = nullptr;
-	gaspi_pointer_t _ptr_seg_ff_allreduce = nullptr;
-	gaspi_pointer_t _ptr_seg_ne_allreduce = nullptr;
 
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
-	int _nbEltsToReduce;
 
 	// segments Ids
     gaspi_segment_id_t _seg_globalRecvBuffer_id; //	7 global Receive Buffer 
     gaspi_segment_id_t _seg_globalSendBuffer_id; //	8
     gaspi_segment_id_t _seg_globalRecvBufIdxPerRank_id; // 9
     gaspi_segment_id_t _seg_remoteBufferIndexes_id; // 10
-    gaspi_segment_id_t _seg_ff_allreduce_id;
-	gaspi_segment_id_t _seg_ne_allreduce_id;
 
 	// usual pointers on values in segments
 	complex * _globalRecvBuffer = nullptr;
 	complex * _globalSendBuffer = nullptr;
     int * _globalRecvBufIdxPerRank = nullptr;
     int * _remoteBufferIndexes = nullptr;
-    complex * _reduceNE = nullptr;			// pointeur sur les ne
-    complex * _reduceFF = nullptr;			// pointeur sur les Far Fields
     
     // other arrays
     int * _sendBufferIndexes = nullptr;
@@ -105,10 +97,7 @@ public:
 	int _nb_send_sz;
 	int _nb_recv_sz;
 	int _sendnode_sz;
-	int _recvnode_sz;
-	int _ff_sz;
-	int _allRed_ff_idx;
-    
+	int _recvnode_sz;    
 
 public:
 	Gaspi_m2l_communicator(
@@ -117,8 +106,7 @@ public:
 		i64 * sendnode, int sendnode_sz,
 		i64 * recvnode, int recvnode_sz,
 		int nivterm, int levcom,
-		complex * ff, complex * ne, int nbEltsToReduce,
-		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech, int ff_sz);
+		i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp, i64 * fniv, i64 * endelv, i64 * codech);
 
 	void create_allReduceBuffers(complex * ff, complex * ne, int nbEltsToReduce);
 	void create_globalRecvBuffer(i64 * nb_recv, int nb_recv_sz);
@@ -126,8 +114,7 @@ public:
 	void create_globalSendBuffer(i64 * nb_send, int nb_send_sz);
 	void init_sendBufferIndexes(i64 * sendnode, int sendnode_sz, i64 * nb_send);	
 	
-	void runM2LallReduce(complex * ff, complex * ne);
-	void runM2LallReduce_gaspi_hack(complex * ff, complex * ne);
+	//void runM2LallReduce(complex * ff, complex * ne);
 	void runM2LCommunications (complex * bufsave, complex * ff);
 
 	void initGlobalSendSegment(complex * bufsave, complex * ff);
@@ -148,9 +135,8 @@ void construct_m2l_communicator(
 	i64 * sendnode, int sendnode_sz,
 	i64 * recvnode, int recvnode_sz,
 	int nivterm, int levcom,
-	complex * ff, complex * ne, int allreduce_sz,
 	i64 * fsend, i64 * send, i64 * frecv, i64 * recv, 
-	i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech, int ff_sz,
+	i64 * nst, i64 * nsp, i64 * fniv, i64 * endlev, i64 * codech,
 	Gaspi_m2l_communicator *& gCommM2L);
 
 /**
