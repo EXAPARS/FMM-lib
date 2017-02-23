@@ -22,21 +22,9 @@
 #include "mpi.h"
 #include "GASPI.h"
 #include "Gaspi_tools.hpp"
-
-#include "types.hpp"
-#include "fmm_tools.hpp"
 #include "Complex.hpp"
-#include "vec3D.hpp"
-#include "Particles.hpp"
-#include "Node.hpp"
-#include "Decomposition.hpp"
-#include "LoadBalancerBase.hpp"
-#include "LoadBalancer.hpp"
-#include "LBMortonSyncMPI.hpp"
-#include "LBHistApprox.hpp"
 #include "Gaspi_M2L_communicator.hpp"
 #include "Gaspi_UNK_communicator.hpp"
-
 
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 
@@ -44,12 +32,6 @@
 
 extern "C"
 {
-	// Load Balancing
-	void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nodeOwners, 
-		double * nodeCenters, i64 * endlev, i64 * nbLevels, double * maxEdge, int * LBstrategy);
-	
-	void fmm_get_elem_coors_ (int * elemToNode, i64 * nbElem, double * nodesXcoords, double * nodesYcoords, double * nodesZcoords);
-	
 	// Gaspi
 	void fmm_gaspi_init_();
 	void fmm_gaspi_finalize_();
@@ -70,19 +52,7 @@ extern "C"
 										  i64 * frecv,		i64 * recv,
 										  i64 * endlev,		i64 * codech,
 										  i64 * ff_sz);
-										    
-	void fmm_handle_allreduce_gaspi_(complex * ff, complex * ne, i64 * size, 
-							i64 * recvnode, i64 * recvnode_sz, 
-							i64 * sendnode, i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz);
-
-	void fmm_handle_allreduce_gaspi_hack_(complex * ff, complex * ne, i64 * size, 
-							i64 * recvnode, i64 * recvnode_sz, 
-							i64 * sendnode, i64 * sendnode_sz,
-							i64 * nb_recv, 	i64 * nb_recv_sz,
-							i64 * nb_send, 	i64 * nb_send_sz);							
-							
+										    							
 	void fmm_handle_comms_gaspi_(i64 * recvnode, 	i64 * recvnode_sz, 
 								 i64 * sendnode, 	i64 * sendnode_sz,
 								 i64 * nb_recv, 	i64 * nb_recv_sz,
@@ -98,11 +68,6 @@ extern "C"
 								 i64 * endlev,		i64 * codech,
 								 complex * bufsave);
 	
-	
-	void fmm_gaspi_init_handler_();
-	void fmm_gaspi_destroy_handler_();
-	
-	// gaspi overlap
 	void gaspi_send_ff_(i64 * niv, complex * ff);
 	void gaspi_recv_ff_(i64 * niv, complex * ff);
 
