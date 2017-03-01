@@ -94,7 +94,7 @@ void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 			recvnode, (int)(*recvnode_sz),
 			(int)(*nivterm), (int)(*levcom),
 			fsend, send, frecv, recv, nst, nsp, fniv, endlev, codech, (int)(*includeLevcom),
-			gCommFF);	
+			gCommFF);
 	}
 	// switch back to mpi
 	fmm_switch_to_mpi_();

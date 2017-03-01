@@ -74,7 +74,7 @@ public:
     // other arrays
     int * _sendBufferIndexes = nullptr;
     int * _offsetKeeper = nullptr;
-    int ** _nbToRecvPerSrcAndLevel = nullptr;
+    int ** _expectPerSrcAndLevel = nullptr;
     
     /* arrays from Fortran*/
     int _nivterm;					// hauteur de l'octree = dernier niveau de l'arbre
@@ -115,7 +115,7 @@ public:
 
 	void initGlobalSendSegment(complex * bufsave, complex * ff);
 	void initAllReduceBuffers(complex * ff, complex * ne);
-	void init_nbExchangeArrays();
+	void init_expectPerSrcAndLevel();
 	void updateFarFields(int src, complex * ff);
 	void updateFarFields(int src, int level, complex * ff);
 	

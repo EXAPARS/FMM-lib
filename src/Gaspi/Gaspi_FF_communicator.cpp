@@ -45,7 +45,7 @@ Gaspi_FF_communicator::Gaspi_FF_communicator(
 	create_remoteBufferIndexes(recvnode, recvnode_sz, nb_recv);
 	create_globalSendBuffer(nb_send, nb_send_sz);
 	init_sendBufferIndexes(sendnode, sendnode_sz, nb_send);
-	init_nbExchangeArrays();
+	init_expectPerSrcAndLevel();
 	
 	_nbQueues = 1;
 }
@@ -134,7 +134,7 @@ void Gaspi_FF_communicator::create_remoteBufferIndexes(i64 * recvnode, int recvn
 	// update user pointers
     _globalRecvBufIdxPerRank = (int *)_ptr_seg_globalRecvBufIdxPerRank;    
     
-    // initialize segment with values
+    // initialize segment with values -> put in rank order
     for (int k=0; k<recvnode_sz; k++)
     {
 		if (recvnode[k] > 0)
@@ -146,7 +146,8 @@ void Gaspi_FF_communicator::create_remoteBufferIndexes(i64 * recvnode, int recvn
 			}
 			else
 			{
-				cerr << "[Create_remoteBufferIndexes] Fortran recvnode array should not contain the current rank !"; exit(0);
+				cerr << "[Create_remoteBufferIndexes] Fortran recvnode array should not contain the current rank !"; 
+				exit(0);
 			}
 		}
     }
@@ -314,14 +315,14 @@ void Gaspi_FF_communicator::init_sendBufferIndexes(i64 * sendnode, int sendnode_
 	delete [] globalSendBufferIndexPerROUND;
 }
 
-void Gaspi_FF_communicator::init_nbExchangeArrays()
+void Gaspi_FF_communicator::init_expectPerSrcAndLevel()
 {
 	int indexToC = -1;
 	
 	// alloc
-	_nbToRecvPerSrcAndLevel = new int* [_wsize]();
+	_expectPerSrcAndLevel = new int* [_wsize]();
 	for (int i=0; i<(_wsize); i++)
-		_nbToRecvPerSrcAndLevel[i] = new int[_nivterm]();
+		_expectPerSrcAndLevel[i] = new int[_nivterm]();
 	
 	// fill
 	for (int src=0; src<_wsize; src++)
@@ -351,13 +352,13 @@ void Gaspi_FF_communicator::init_nbExchangeArrays()
 					if ( (cellID > _endlev[level-1]+indexToC) && (cellID <= _endlev[level]+indexToC) )
 					{
 						found = 1;
-						_nbToRecvPerSrcAndLevel[src][level]++;
+						_expectPerSrcAndLevel[src][level]++;
 					}
 					level++;
 				}
 				if (!found)
 				{
-					cout << "ERROR [Gaspi_FF_communicator::init_nbExchangeArrays]: cell level has not been identified !" << endl;
+					cout << "ERROR [Gaspi_FF_communicator::init_expectPerSrcAndLevel]: cell level has not been identified !" << endl;
 					exit(-1);
 				}
 			}
@@ -640,16 +641,17 @@ void Gaspi_FF_communicator::updateFarFields(int src, complex * ff)
 void Gaspi_FF_communicator::send_ff_level(int level, complex * ff)
 {
 	int indexToC = -1;
-	gaspi_queue_id_t queue=0;
-	
 	double t_begin, t_end, accumul;
 	accumul = 0;
+	
+	// flush queue
 	t_begin = MPI_Wtime();
 	flush_queues(_nbQueues);
+	t_end = MPI_Wtime();
 	add_time_sec("GASPI_SEND_wait_queue", t_end - t_begin);
 	accumul = accumul + (t_end - t_begin);	
 	
-	// pour chaque voisin
+	// prepare _globalSendBuffer
 	for (int dest=0; dest<_wsize; dest++)
 	{
 		if (dest != _rank)
@@ -703,6 +705,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff)
 				gaspi_offset_t local_dest_offset = _sendBufferIndexes[dest] * sizeof(complex);
 				gaspi_offset_t level_offset = _offsetKeeper[dest] * sizeof(complex);
 				gaspi_offset_t local_offset = local_dest_offset + level_offset;
+				gaspi_queue_id_t queue=0;
 				
 				// remote offset
 				gaspi_offset_t remote_sender_offset = _remoteBufferIndexes[dest] * sizeof(complex);
@@ -758,7 +761,7 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff)
 	// wait to receive all infos
 	int nbRecvExpected = 0;
 	for (int i=0; i<_wsize; i++)
-		nbRecvExpected += (_nbToRecvPerSrcAndLevel[i][level]>0);
+		nbRecvExpected += (_expectPerSrcAndLevel[i][level]>0);
 	
 	int rankMultiple = level;
 	gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
@@ -826,7 +829,7 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff)
 	int levelOffset = 0;
 	for (int i=_nivterm+indexToC; i>level; i--)
 	{
-		levelOffset += _nst[i]*_nsp[i]*_nbToRecvPerSrcAndLevel[src][i];
+		levelOffset += _nst[i]*_nsp[i]*_expectPerSrcAndLevel[src][i];
 	}
 	int q = _globalRecvBufIdxPerRank[src]-1; // se mettre 1 case avant l'index à lire
 	q += levelOffset; 	
