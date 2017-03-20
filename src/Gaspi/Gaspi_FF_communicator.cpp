@@ -804,7 +804,6 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff)
 		add_time_sec("GASPI_RECV_notify_waitsome", t_end - t_begin);
 		add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
 		
-
 		// test the notification value and compare with array (I know, useless)
 		t_begin = MPI_Wtime();
 		if (new_notif_val)
@@ -817,7 +816,6 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff)
 		add_time_sec("FF_read_from_buffer", t_end - t_begin);
 	}
 }
-
 
 /* For the Overlapping, level by level version */
 void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff)
