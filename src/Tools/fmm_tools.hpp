@@ -71,7 +71,7 @@ void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 	
 	if (buffer == nullptr)
 	{
-		cerr << "Buffer to dump is not allocated."; exit(-1);
+		cerr << "[dumpBuffer] Buffer is not allocated."; exit(-1);
 	}
 	//out << message << endl;
 	for (int i=0; i<size; i++)

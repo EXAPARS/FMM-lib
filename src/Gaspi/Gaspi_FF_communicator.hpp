@@ -129,9 +129,9 @@ public:
 		i64 * nb_recv, int nb_recv_sz, i64 * nb_send, int nb_send_sz, int mat, int nbMat,
 		int nivterm, i64 * frecv, i64 * recv, int levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * codech);
 				
-	void init_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
-	void init_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
-	void init_expectations(int iOct);
+	void fill_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
+	void fill_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
+	void fill_expectations(int iOct);
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
 	void alloc_attributes();

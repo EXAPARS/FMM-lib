@@ -908,6 +908,17 @@ Gaspi_FF_communicator::Gaspi_FF_communicator(int max_send, int max_recv, int inc
 	}
 
 	_LocalSendOffsets = new int[_wsize * _nbOct](); // Local SEND offsets x nb of octrees (=nb materials)
+
+	_Expect = new int**[_nbOct]();
+	for (int i=0; i<_nbOct; i++)
+	{
+		_Expect[i] = new int*[_wsize]();
+		/*for (int j=0; j<_wsize; j++)
+		{
+			_Expect[i][j] = new int[_nivterm[i]]();
+		}*/
+	}
+
 	alloc_attributes();
 	
 	// create gaspi segments, and initialize them
@@ -1013,11 +1024,11 @@ void Gaspi_FF_communicator::init_gaspi_offsets(i64 * recvnode, int recvnode_sz, 
 		endlev, codech, nb_send, nb_recv, sendnode, recvnode, nb_send_sz, nb_recv_sz, sendnode_sz, recvnode_sz);
 	
 	// offsets
-	init_remote_send_offsets(recvnode, recvnode_sz, nb_recv, nb_recv_sz, iOct);
-	init_local_send_offsets(sendnode, sendnode_sz, nb_send, nb_send_sz, iOct);
+	fill_remote_send_offsets(recvnode, recvnode_sz, nb_recv, nb_recv_sz, iOct);
+	fill_local_send_offsets(sendnode, sendnode_sz, nb_send, nb_send_sz, iOct);
 	
 	// expected data
-	init_expectations(iOct);
+	fill_expectations(iOct);
 	
 	//printf("[%d] Initalizations	--> OK\n",_rank);
 
@@ -1057,7 +1068,7 @@ void Gaspi_FF_communicator::fill_attributes(int iOct, int nivterm, int levcom, i
 	}*/
 }
 
-void Gaspi_FF_communicator::init_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct)
+void Gaspi_FF_communicator::fill_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct)
 {	
 	// From Fortran to C/C++
 	int indexToC = -1;
@@ -1155,14 +1166,14 @@ void Gaspi_FF_communicator::init_remote_send_offsets(i64 * recvnode, int recvnod
 	}
 	
 	_RemoteSendOffsets[octree_offset + _rank] = -1;
-	//printf("[%d] init_remote_send_offsets	--> OK\n",_rank);
+	//printf("[%d] fill_remote_send_offsets	--> OK\n",_rank);
 	//~ for (int j=0; j<_wsize; ++j)
 	//~ {
 		//~ printf("[%d] oct %d, to %d, remote offset : %d \n", _rank, iOct, j, _RemoteSendOffsets[octree_offset + j]);
 	//~ }
 }
 
-void Gaspi_FF_communicator::init_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_send, int nb_send_sz, int iOct)
+void Gaspi_FF_communicator::fill_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_send, int nb_send_sz, int iOct)
 {
 	// From Fortran to C/C++
 	int indexToC = -1;
@@ -1206,20 +1217,19 @@ void Gaspi_FF_communicator::init_local_send_offsets(i64 * sendnode, int sendnode
 	delete [] SendBufferIndexPerROUND;
 }
 
-void Gaspi_FF_communicator::init_expectations(int iOct)
+void Gaspi_FF_communicator::fill_expectations(int iOct)
 {
-	int indexToC = -1;
-	
-	// alloc
-	_Expect = new int**[_nbOct]();
-	for (int i=0; i<_nbOct; i++)
-	{
-		_Expect[i] = new int*[_wsize]();
+	// init last dim only
+	//_Expect = new int**[_nbOct]();
+	//for (int i=0; i<_nbOct; i++)
+	//{
+		//_Expect[i] = new int*[_wsize]();
 		for (int j=0; j<_wsize; j++)
 		{
-			_Expect[i][j] = new int[_nivterm[i]]();
+			_Expect[iOct][j] = new int[_nivterm[iOct]]();
 		}
-	}
+	//}
+	int indexToC = -1;
 	
 	// fill
 	for (int src=0; src<_wsize; src++)
@@ -1261,21 +1271,38 @@ void Gaspi_FF_communicator::init_expectations(int iOct)
 			}
 		}
 	}
-	//printf("[%d] init_expectations	--> OK\n",_rank);
-	/*if (iOct == 0)
+	/*if (_rank == 0)
 	{
-		for (int i=0; i<_wsize; i++)
+		printf("[%d] fill_expectations	--> OK, %p \n",_rank, _Expect);
+		/*if (iOct == 0)
 		{
-			for (int h=0; h<_nivterm[iOct]; h++)
+			for (int i=0; i<_wsize; i++)
 			{
-				printf("[%d] oct %d, expects %d from %d at level %d\n", _rank, iOct, _Expect[iOct][i][h], i, h);
+				for (int h=0; h<_nivterm[iOct]; h++)
+				{
+					printf("[%d] oct %d, expects %d from %d at level %d\n", _rank, iOct, _Expect[iOct][i][h], i, h);
+				}
 			}
-		}
-	}*/
+		}*/
+	//}
 }
 
 void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 {
+	/*if (_rank == 0)
+	{
+		printf("[%d] nbRecvExpected	--> DISPLAY AT SEND : %p \n",_rank,_Expect);
+		/*if (iOct == 0)
+		{
+			for (int i=0; i<_wsize; i++)
+			{
+				for (int h=0; h<_nivterm[iOct]; h++)
+				{
+					printf("[%d] oct %d, expects %d from %d at level %d\n", _rank, iOct, _Expect[iOct][i][h], i, h);
+				}
+			}
+		}*/
+	//}
 	//printf("[%d] gaspi_send_ff, level %d	--> ENTER\n",_rank, level);
 
 	int indexToC = -1;
@@ -1409,9 +1436,24 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 			nbRecvExpected++;
 			//printf("[%d] nbRecvExpected %d, level %d iOct %d \n",_rank, nbRecvExpected, level, iOct);
 		}
-
 	}
-	//printf("[%d] nbRecvExpected %d, level %d \n",_rank, nbRecvExpected, level);
+	/*if (_rank == 0)
+	{
+		printf("[%d] nbRecvExpected	--> DISPLAY AT RECV %p\n",_rank, _Expect);
+		/*if (iOct == 0)
+		{
+			for (int i=0; i<_wsize; i++)
+			{
+				for (int h=0; h<_nivterm[iOct]; h++)
+				{
+					printf("[%d] oct %d, expects %d from %d at level %d\n", _rank, iOct, _Expect[iOct][i][h], i, h);
+				}
+			}
+		}*/
+	//}
+	
+	/*if (_rank == 0)
+		printf("[%d] nbRecvExpected %d, level %d \n",_rank, nbRecvExpected, level);*/
 
 	/*int rankMultiple = level;
 	gaspi_notification_id_t notif_offset = _wsize * rankMultiple;*/
@@ -1474,7 +1516,6 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 		}
 		t_end = MPI_Wtime();
 		add_time_sec("FF_read_from_buffer", t_end - t_begin);
-	
 	}
 	//printf("[%d] gaspi_recv_ff, level %d	--> OK\n",_rank, level);
 }
@@ -1482,6 +1523,8 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, int iOct)
 {	
 	//printf("[%d] updateFarFields, level %d	--> ENTER\n",_rank, level);
+
+	//printf("[%d] updateFarFields \n",	_rank);
 	
 	int indexToC = -1;
 	int k = level + 1;
@@ -1495,6 +1538,7 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 	}
 	int q = _RecvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
 	q += levelOffset; 	
+	dumpBuffer(_rank, &_RecvBuffer[q], 10, "updateFarFields","");
 
 	// box range to recv, FROM RECV ARRAY
 	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;

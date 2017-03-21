@@ -117,7 +117,7 @@ void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
 	}
 	else
 	{
-		cerr << "Gaspi M2L Communicator is not initialized !" << endl;
+		cerr << "[wrapper gaspi_send_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
 	//printf("[EXIT] gaspi_send_ff_ , level : %d, domain : %d\n",(int)(*niv)-1, (int)(*idom)-1);	
@@ -130,6 +130,11 @@ void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 	//cout << "tata" << endl;
 	//fflush(stdout);
 	//printf("[ENTER] gaspi_recv_ff_ , level : %d, domain : %d\n",((int)(*niv)-1), ((int)(*idom)-1));	
+	
+	/*int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	if (rank==0)
+		printf("[%d] gaspi_recv_ff_ \n",	rank);*/
+	
 	if (gCommFF)
 	{
 		//cout << "into recv level" << (int)(*niv)-1 << "octree : " << (int)(*idom)-1 << endl;
@@ -137,7 +142,7 @@ void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 	}
 	else
 	{
-		cerr << "Gaspi M2L Communicator is not initialized !" << endl;
+		cerr << "[wrapper gaspi_recv_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
 	//printf("[EXIT] gaspi_recv_ff_ , level : %d, domain : %d\n",(int)(*niv)-1, (int)(*idom)-1);	
@@ -147,6 +152,10 @@ void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 // multimat version
 void gaspi_init_ff_(i64 * max_send, i64 * max_recv, i64 * nbMat, i64 * incLevcom)
 {
+	/*int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	if (rank==0)
+		printf("[%d] gaspi_init_ff \n",	rank);*/
+	
 	if (!gCommFF)
 	{
 		//cout << "Init gaspi m2l communicator [ENTER]" << endl;
@@ -179,7 +188,7 @@ void gaspi_init_offsets_(i64 * recvnode, i64 * recvnode_sz, i64 * sendnode, i64 
 	}
 	else
 	{
-		cerr << "Gaspi M2L Communicator is not initialized !" << endl; exit(-1);
+		cerr << "[wrapper gaspi_init_offsets]Gaspi M2L Communicator is not initialized !" << endl; exit(-1);
 	}
 
 	//cout << "gaspi_init_offsets_ [EXIT]" << endl;
@@ -229,5 +238,5 @@ void fmm_handle_unknowns_allreduce_()
 void fmm_dump_(complex * tab)
 {
 	int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-	dumpBuffer(mpi_rank, tab, 10, "fortran", "ne, ff");
+	dumpBuffer(mpi_rank, tab, 10, "fortran", "ff");
 }
