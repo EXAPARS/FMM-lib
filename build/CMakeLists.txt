@@ -56,7 +56,7 @@ set (MPI_COMPILE_FLAGS "-g -fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
 
 # ---------------- set output library
 add_library (
-    fmm-dev
+    fmm
     SHARED
     ${FMM_src_list}
 )
@@ -72,18 +72,18 @@ include_directories(${MPI_INCLUDE_PATH})
 include_directories (${GASPI_INCLUDE})
 
 # ----------------  LINK
-target_link_libraries(fmm-dev
+target_link_libraries(fmm
 	${MPI_LIBRARIES} 
 	${NMTOOLS_LIB}
 	${BOOST_LIB}
 )
 
 if(MPI_COMPILE_FLAGS)
-  set_target_properties(fmm-dev
+  set_target_properties(fmm
   PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
 if(MPI_LINK_FLAGS)
-  set_target_properties(fmm-dev
+  set_target_properties(fmm
   PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()

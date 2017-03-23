@@ -71,7 +71,6 @@ void fmm_switch_to_gaspi_()
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin);
 	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
-	
 }
 
 // Init
@@ -101,9 +100,10 @@ void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 }
 
 // FF
-void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave)
+void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom)
 {
-	gCommFF->exchangeFFBulk(bufsave, ff);
+	//cout << "wrapper, bulk" << endl;
+	gCommFF->exchangeFFBulk(bufsave, ff, (int)(*idom)-1);
 }
 
 void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
@@ -145,22 +145,14 @@ void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 		cerr << "[wrapper gaspi_recv_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
-	//printf("[EXIT] gaspi_recv_ff_ , level : %d, domain : %d\n",(int)(*niv)-1, (int)(*idom)-1);	
-	//fflush(stdout);
 }
 
 // multimat version
 void gaspi_init_ff_(i64 * max_send, i64 * max_recv, i64 * nbMat, i64 * incLevcom)
 {
-	/*int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-	if (rank==0)
-		printf("[%d] gaspi_init_ff \n",	rank);*/
-	
 	if (!gCommFF)
 	{
-		//cout << "Init gaspi m2l communicator [ENTER]" << endl;
 		init_gaspi_ff((int)(*max_send), (int)(*max_recv), (int)(*nbMat), (int)(*incLevcom), gCommFF);
-		//cout << "Init gaspi m2l communicator [EXIT]" << endl;		
 	}
 }
 
@@ -173,13 +165,6 @@ void gaspi_init_offsets_(i64 * recvnode, i64 * recvnode_sz, i64 * sendnode, i64 
 	//cout << "gaspi_init_offsets_ [ENTER]" << endl;
 	if(gCommFF)
 	{
-		/*int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		if (rank==0)
-		{
-			printf("[%d] WRAPPER oct : %d, fniv %ld fsend %ld send %ld frecv %ld recv %ld nst %ld nsp %ld endlev %ld codech %ld nb_send %ld nb_recv %ld sendnode %ld recvnode %ld\n",
-				rank, (int)(*idom)-1, fniv, fsend, send, frecv, recv, nst, nsp, endlev, codech, nb_send, nb_recv, sendnode, recvnode);
-		}*/
-
 		gCommFF->init_gaspi_offsets(recvnode, (int)(*recvnode_sz), sendnode, (int)(*sendnode_sz), nb_recv, 
 			(int)(*nb_recv_sz), nb_send, (int)(*nb_send_sz), (int)(*idom)-1, (int)(*ndom), 
 			(int)(*nivterm), frecv, recv, (int)(*levcom), endlev, 

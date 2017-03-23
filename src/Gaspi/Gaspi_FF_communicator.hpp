@@ -110,12 +110,12 @@ public:
 	void create_globalSendBuffer(i64 * nb_send, int nb_send_sz);
 	void init_sendBufferIndexes(i64 * sendnode, int sendnode_sz, i64 * nb_send);	
 	
-	void exchangeFFBulk (complex * bufsave, complex * ff);
+	void exchangeFFBulk (complex * bufsave, complex * ff, int iOct);
 
-	void initGlobalSendSegment(complex * bufsave, complex * ff);
+	void initGlobalSendSegment(complex * bufsave, complex * ff, int iOct);
 	void initAllReduceBuffers(complex * ff, complex * ne);
 	void init_expectPerSrcAndLevel();
-	void updateFarFields(int src, complex * ff);
+	void updateFarFields(int src, complex * ff, int iOct);
 	void updateFarFields(int src, int level, complex * ff);
 	void updateFarFields(int src, int level, complex * ff, int iOct);
 	

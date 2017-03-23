@@ -23,9 +23,7 @@
 #include "GASPI.h"
 #include "../Tools/Complex.hpp"
 #include "../Gaspi/Gaspi_FF_communicator.hpp"
-
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
-
 
 
 extern "C"
@@ -44,7 +42,7 @@ extern "C"
 		i64 * frecv, i64 * recv, i64 * endlev, i64 * codech, i64 * includeLevcom);
 
 	// ff 
-	void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave);
+	void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom);
 	void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom);
 	void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom);
 
