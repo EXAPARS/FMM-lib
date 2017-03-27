@@ -409,8 +409,8 @@ void Gaspi_FF_communicator::init_gaspi_offsets(i64 * recvnode, int recvnode_sz, 
 	
 	// expected data
 	fill_expectations(iOct);
-	fill_start_stop_count_send(iOct);
-	fill_start_stop_recv(iOct);
+	fill_send_start_stop_count_send(iOct);
+	fill_recv_start_stop(iOct);
 }
 
 void Gaspi_FF_communicator::fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
@@ -629,7 +629,7 @@ void Gaspi_FF_communicator::fill_expectations(int iOct)
 	}
 }
 
-void Gaspi_FF_communicator::fill_start_stop_count_send(int iOct)
+void Gaspi_FF_communicator::fill_send_start_stop_count_send(int iOct)
 {
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
@@ -718,10 +718,10 @@ void Gaspi_FF_communicator::fill_start_stop_count_send(int iOct)
 		}
 	}
 	t_end = MPI_Wtime();
-	add_time_sec("fill_start_stop_count", t_end - t_begin);
+	add_time_sec("fill_send_start_stop_count", t_end - t_begin);
 }
 
-void Gaspi_FF_communicator::fill_start_stop_recv(int iOct)
+void Gaspi_FF_communicator::fill_recv_start_stop(int iOct)
 {
 	double t_begin, t_end;
 	t_begin = MPI_Wtime();
@@ -815,7 +815,7 @@ void Gaspi_FF_communicator::fill_start_stop_recv(int iOct)
 		}
 	}
 	t_end = MPI_Wtime();
-	add_time_sec("fill_start_stop_count", t_end - t_begin);
+	add_time_sec("fill_send_start_stop_count", t_end - t_begin);
 }
 
 
@@ -852,15 +852,18 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 			int firstBox = _stop_send[iOct][dest][level];
 			if (counter>0)
 			{
-				#pragma omp parallel for
+				#pragma omp parallel for private(q)
 				for (int k=lastBox; k>=firstBox; k--)
 				{
 					int cellID = _send[iOct][k] + indexToC;
 					int p=_fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
 					q = q0 + (lastBox-k)*__nstnsp;
-					
-					for (int i=0; i<__nstnsp; i++)
-						_SendBuffer[q+i] = ff[p+i];
+					/*
+					int i;
+					#pragma simd
+					for (i=0; i<__nstnsp; i++)
+						_SendBuffer[q+i] = ff[p+i];*/
+					_SendBuffer[q:__nstnsp] = ff[p:__nstnsp]; 
 				}
 				t_end = MPI_Wtime();
 			}
@@ -1024,11 +1027,8 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 	// variables precalculables
 	int __nstnsp = _nst[iOct][level]*_nsp[iOct][level];
 	int __endlev = _endlev[iOct][level]+indexToC;
-	int __endlevprec = _endlev[iOct][level-1]+indexToC;
 	long * __recv = _recv[iOct];
 	int __fnivnextlev = _fniv[iOct][level+1];
-	int __nst = _nst[iOct][level];
-	int __nsp = _nsp[iOct][level];	
 
 	// box range to recv, FROM RECV ARRAY
 	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;
@@ -1036,44 +1036,6 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 
 	t_begin = MPI_Wtime();
 	
-	// find box range in the targeted level
-	/*bool start = false;
-	bool stop = false;
-	int firstBox, lastBox;
-	
-    for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
-	{
-		int cellID = __recv[j] + indexToC;
-
-		if (!start)
-		{
-			if ( (cellID > __endlevprec) && (cellID <= __endlev) )
-			{
-				start = true;
-				lastBox = j;
-			}
-		}
-		else
-		{
-			if (!stop)
-			{
-				if ( cellID <= __endlevprec) 
-				{
-					stop = true;
-					firstBox = j+1;
-				}
-			}
-		}
-	}
-	if (!stop)
-	{
-		firstBox = firstBoxToRecvIdx;
-		stop = true;
-	}	
-	
-	if (_rank == 2)
-		printf("_rank %d *** first %d vs %d, last %d vs %d \n", _rank,/*start,start_recv[iOct][src][level]>0, stop,_stop_recv[iOct][src][level]>0, 
-								firstBox, _stop_recv[iOct][src][level], lastBox, _start_recv[iOct][src][level]);*/
 	bool start = (_start_recv[iOct][src][level]>=0);
 	bool stop  = (_stop_recv[iOct][src][level]>=0);
 	int firstBox = _stop_recv[iOct][src][level]; 
@@ -1081,18 +1043,19 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 	
 	if (start && stop)
 	{
-		#pragma omp parallel for
+		#pragma omp parallel for private (q)
 		for (int j=lastBox; j>=firstBox; j--)
 		{
 			q = q0 + (lastBox-j)*__nstnsp;		
 			int cellID = __recv[j] + indexToC; 
 			int p0 = __fnivnextlev + ((__endlev-cellID)*__nstnsp);			
 			
-			for (int i=0; i<__nstnsp; i++)
-			{
+			//for (int i=0; i<__nstnsp; i++)
+			/*{
 				ff[p0+i].re = ff[p0+i].re + _RecvBuffer[q+i].re;
 				ff[p0+i].im = ff[p0+i].im + _RecvBuffer[q+i].im;
-			}
+			}*/
+			ff[p0:__nstnsp] = ff[p0:__nstnsp] + _RecvBuffer[q:__nstnsp];
 		}
 	}
 
