@@ -72,6 +72,8 @@ public:
     int *** _start_send = nullptr; // per domain, per rank, per level
     int *** _stop_send  = nullptr; // per domain, per rank, per level
     int *** _count_send = nullptr; // per domain, per rank, per level
+    int *** _start_recv = nullptr;
+    int *** _stop_recv  = nullptr;
     
     /* arrays from Fortran*/
     int * _nivterm;					// hauteur de l'octree = dernier niveau de l'arbre
@@ -135,7 +137,9 @@ public:
 	void fill_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
 	void fill_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
 	void fill_expectations(int iOct);
-	void fill_start_stop_count(int iOct);
+	void fill_start_stop_count_send(int iOct);
+	void fill_start_stop_recv(int iOct);
+
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
 	void alloc_attributes();
