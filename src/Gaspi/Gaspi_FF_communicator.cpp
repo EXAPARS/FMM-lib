@@ -611,7 +611,380 @@ void Gaspi_FF_communicator::fill_expectations(int iOct)
 	}
 }
 
+
 void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
+{
+	int indexToC = -1;
+	double t_begin, t_end, accumul;
+	accumul = 0;
+	int octree_offset = iOct * _wsize;
+	
+	// flush queue
+	t_begin = MPI_Wtime();
+	flush_queues(_nbQueues);
+	t_end = MPI_Wtime();
+	add_time_sec("GASPI_SEND_wait_queue", t_end - t_begin);
+	accumul = accumul + (t_end - t_begin);	
+	
+	// variables précalculables
+	int __nstnsp = _nst[iOct][level]*_nsp[iOct][level];
+
+	int * counters = new int[_wsize]();
+	
+	// prepare _SendBuffer
+	for (int dest=0; dest<_wsize; dest++)
+	{
+		if (dest != _rank)
+		{
+			t_begin = MPI_Wtime();
+			// box range to send, FROM SEND ARRAY
+			int firstBoxToSendIDX= _fsend[iOct][dest] + indexToC;
+			int lastBoxToSendIDX = _fsend[iOct][dest+1]-1 + indexToC;
+			
+			// cell range from the current level
+			int beginlevel = _endlev[iOct][level-1]+1 + indexToC; 
+			int endlevel   = _endlev[iOct][level] + indexToC;
+			
+			int count = 0;
+			int q = _LocalSendOffsets[octree_offset + dest] - 1 + _offsetKeeper[iOct][dest];
+			int q0 = q + 1; 
+			
+			// --- 
+			int __endlev = _endlev[iOct][level]+indexToC;
+			int __endlevprec = _endlev[iOct][level-1]+indexToC;
+			long * __send = _send[iOct];
+			bool start = false;
+			bool stop = false;
+			int firstBox, lastBox;
+			
+			//if (_rank == 5) cout << "testing from  " << lastBoxToSendIDX << " to " << firstBoxToSendIDX << endl;
+			for (int j=lastBoxToSendIDX; j>=firstBoxToSendIDX; j--)
+			{
+				int cellID = __send[j] + indexToC;
+
+				if (!start)
+				{
+					if ( (cellID > __endlevprec) && (cellID <= __endlev) )
+					{
+						start = true;
+						lastBox = j;
+				//		if (_rank == 5) cout << "found last : " << lastBox << endl;
+					}
+				}
+				else
+				{
+					if (!stop)
+					{
+						if ( cellID <= __endlevprec) 
+						{
+							stop = true;
+							firstBox = j+1;
+				//			if (_rank == 5)  cout << "found first : " << firstBox << endl;
+						}
+					}
+				}
+			}
+
+			if (!start)
+			{
+				lastBox =  -1;
+				firstBox = -1;
+				counters[dest] = 0;				
+			//	if (_rank == 5) cout << "did not find the last(start) box !!! : should be -1 !!! " << lastBox << endl;
+			}
+			
+			if (start)
+			{
+				if(!stop)
+				{
+					firstBox = firstBoxToSendIDX;
+					//if (_rank == 5) cout << "did not find the first(stop) box : " << firstBox << endl;
+				}
+				counters[dest] = lastBox-firstBox+1;
+			}
+			
+
+			
+			//if (_rank == 5) printf("%d level = %d, domain = %d, first: %d -> last: %d\n",_rank, level, iOct, firstBox, lastBox);
+			if (counters[dest]>0)
+			{
+				// --- 
+				#pragma omp parallel for
+				for (int k=lastBox; (k>=firstBox); k--)
+				{
+					int cellID = _send[iOct][k] + indexToC;
+					int p=_fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
+					q = q0 + (lastBox-k)*__nstnsp;
+					
+					for (int i=0; i<__nstnsp; i++)
+						_SendBuffer[q+i] = ff[p+i];
+				}
+				t_end = MPI_Wtime();
+			}
+			add_time_sec("FF_write_to_buffer", t_end - t_begin);
+		}
+	}
+
+	// send !
+	for (int dest=0; dest<_wsize; dest++)
+	{
+		if (dest != _rank)
+		{
+			t_begin = MPI_Wtime();
+			
+			// if something to send
+			if (counters[dest] > 0)
+			{
+				// local offset
+				gaspi_offset_t local_dest_offset = _LocalSendOffsets[octree_offset + dest] * sizeof(complex);
+				gaspi_offset_t level_offset = _offsetKeeper[iOct][dest] * sizeof(complex);
+				gaspi_offset_t local_offset = local_dest_offset + level_offset;
+				gaspi_queue_id_t queue=0;
+				
+				// remote offset
+				gaspi_offset_t remote_sender_offset = _RemoteSendOffsets[octree_offset + dest] * sizeof(complex);
+				gaspi_offset_t remote_offset = remote_sender_offset + level_offset;
+
+
+				// update offset, per destinatary
+				_offsetKeeper[iOct][dest] += counters[dest] * _nst[iOct][level] * _nsp[iOct][level];
+
+				//int rankMultiple = level;
+				//TODO : CORRIGER CAR ARBRES PEUVENT AVOIR DES HAUTEURS DIFFERENTES
+				gaspi_notification_id_t notifyID = (iOct * _nivterm[iOct] * _wsize) + (level * _wsize) + _rank;
+				gaspi_size_t qty= counters[dest] * _nst[iOct][level] * _nsp[iOct][level] * sizeof(complex);
+				
+				SUCCESS_OR_DIE(
+					gaspi_write_notify( 
+						_seg_SendBuffer_id,			// local seg ID
+						local_offset,						// local offset
+						dest,								// receiver rank
+						_seg_RecvBuffer_id,			// remote seg ID
+						remote_offset,						// remote offset
+						qty,								// size of data to write
+						notifyID,							// remote notif ID
+						level,								// value of the notif to write
+						queue,								// queue
+						GASPI_BLOCK							// Gaspi block
+					)
+				);
+			}
+			t_end = MPI_Wtime();
+			add_time_sec("GASPI_SEND_write_notify", t_end - t_begin);
+			accumul = accumul + (t_end - t_begin);
+		}
+		
+		// Une fois tout fini, reset ou non le tableau d'offsets
+		if(_incLevcom)
+		{
+			if (level == _levcom[iOct] + indexToC)
+				_offsetKeeper[iOct][dest] = 0;
+		}
+		else // cas allreduce sur levcom
+		{
+			if (level == _levcom[iOct] + 1 + indexToC)
+				_offsetKeeper[iOct][dest] = 0;
+		}
+	}
+	
+	add_time_sec("GASPI_FF_sendrecv", accumul);
+}
+
+
+void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
+{
+
+	// wait to receive all infos
+	int nbRecvExpected = 0;
+	for (int i=0; i<_wsize; i++)
+	{
+		if (_Expect[iOct][i][level]>0)
+		{
+			nbRecvExpected++;
+		}
+	}
+
+
+	gaspi_notification_id_t notif_offset = (iOct * _nivterm[iOct] * _wsize) + (level * _wsize);
+	gaspi_notification_id_t new_notif_id;
+	gaspi_notification_t new_notif_val;
+	int recvCpt = 0;
+	int sender;
+	double t_begin, t_end;
+	
+	while (recvCpt < nbRecvExpected)
+	{
+		t_begin = MPI_Wtime();
+		while(1)
+		{
+			SUCCESS_OR_DIE(
+				gaspi_notify_waitsome(
+					_seg_RecvBuffer_id,
+					notif_offset,				// surveille les notifications depuis 0
+					_wsize,						// en surveille wsize
+					&new_notif_id,
+					GASPI_BLOCK
+				)
+			);
+
+			SUCCESS_OR_DIE(
+				gaspi_notify_reset(
+					_seg_RecvBuffer_id, 
+					new_notif_id, 
+					&new_notif_val
+				)
+			);
+			
+			if (new_notif_val) 
+				break;
+		}
+		
+		t_end = MPI_Wtime();
+		add_time_sec("GASPI_RECV_notify_waitsome", t_end - t_begin);
+		add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
+		
+
+		// test the notification value and compare with array (I know, useless)
+		t_begin = MPI_Wtime();
+		if (new_notif_val)
+		{
+			recvCpt++;
+			sender = new_notif_id - notif_offset;
+			updateFarFields(sender, level, ff, iOct);
+		}
+		t_end = MPI_Wtime();
+		add_time_sec("FF_read_from_buffer", t_end - t_begin);
+	}
+}
+
+
+void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, int iOct)
+{			
+	int indexToC = -1;
+	int k = level + 1;
+	int octree_offset = iOct * _wsize;
+	double t_begin, t_end;
+	
+	// calcul de l'offset	
+	int levelOffset = 0;
+	for (int i=_nivterm[iOct] + indexToC; i>level; i--)
+	{
+		levelOffset += _nst[iOct][i] * _nsp[iOct][i] * _Expect[iOct][src][i];
+	}
+	int q = _RecvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
+	q += levelOffset;
+	int q0 = q + 1; 	
+	
+	// variables precalculables
+	int __nstnsp = _nst[iOct][level]*_nsp[iOct][level];
+	int __endlev = _endlev[iOct][level]+indexToC;
+	int __endlevprec = _endlev[iOct][level-1]+indexToC;
+	long * __recv = _recv[iOct];
+	int __fnivnextlev = _fniv[iOct][level+1];
+	int __nst = _nst[iOct][level];
+	int __nsp = _nsp[iOct][level];	
+
+	// box range to recv, FROM RECV ARRAY
+	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;
+	int lastBoxToRecvIdx = _frecv[iOct][src+1]-1 + indexToC;
+
+	t_begin = MPI_Wtime();
+	
+	// find box range in the targeted level
+	bool start = false;
+	bool stop = false;
+	int firstBox, lastBox;
+	
+    for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
+	{
+		int cellID = __recv[j] + indexToC;
+
+		if (!start)
+		{
+			if ( (cellID > __endlevprec) && (cellID <= __endlev) )
+			{
+				start = true;
+				lastBox = j;
+			}
+		}
+		else
+		{
+			if (!stop)
+			{
+				if ( cellID <= __endlevprec) 
+				{
+					stop = true;
+					firstBox = j+1;
+				}
+			}
+		}
+	}
+	if (!stop)
+		firstBox = firstBoxToRecvIdx;
+	
+	#pragma omp parallel for
+	for (int j=lastBox; j>=firstBox; j--)
+	{
+		q = q0 + (lastBox-j)*__nstnsp;		
+		int cellID = __recv[j] + indexToC; 
+		int p0 = __fnivnextlev + ((__endlev-cellID)*__nstnsp);			
+		
+		for (int i=0; i<__nstnsp; i++)
+		{
+			ff[p0+i].re = ff[p0+i].re + _RecvBuffer[q+i].re;
+			ff[p0+i].im = ff[p0+i].im + _RecvBuffer[q+i].im;
+		}
+	}
+
+	t_end = MPI_Wtime();
+	add_time_sec("Boucle_read_from_buffer", t_end - t_begin);
+}
+
+/* void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, int iOct) // optimized OUT
+{		
+	int indexToC = -1;
+	int k = level + 1;
+	int octree_offset = iOct * _wsize;
+
+	// calcul de l'offset	
+	int levelOffset = 0;
+	for (int i=_nivterm[iOct] + indexToC; i>level; i--)
+	{
+		levelOffset += _nst[iOct][i] * _nsp[iOct][i] * _Expect[iOct][src][i];
+	}
+	int q = _RecvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
+	q += levelOffset; 	
+
+	// box range to recv, FROM RECV ARRAY
+	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;
+	int lastBoxToRecvIdx = _frecv[iOct][src+1]-1 + indexToC;
+
+    for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
+	{
+		int cellID = _recv[iOct][j] + indexToC;
+	
+		// test if box belongs to level 
+		if ( (cellID > _endlev[iOct][level-1]+indexToC) && (cellID <= _endlev[iOct][level]+indexToC) )
+		{
+			// update far fields
+			int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
+			p = p + indexToC;
+			
+			for (int st=0; st<_nst[iOct][level]; st++)
+			{
+				for (int sp=0; sp<_nsp[iOct][level]; sp++)
+				{
+					p++;
+					q++;
+					ff[p] = ff[p] + _RecvBuffer[q];
+				}
+			}
+		}
+	}
+}*/
+
+/*
+void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct) // optimized OUT
 {
 	int indexToC = -1;
 	double t_begin, t_end, accumul;
@@ -689,10 +1062,10 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 				// update offset, per destinatary
 				_offsetKeeper[iOct][dest] += count * _nst[iOct][level] * _nsp[iOct][level];
 
-				/*int rankMultiple = level;
-				gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
-				gaspi_notification_id_t notifyID = notif_offset + _rank;
-				TODO : CORRIGER CAR ARBRES PEUVENT AVOIR DES HAUTEURS DIFFERENTES*/
+				//int rankMultiple = level;
+				//gaspi_notification_id_t notif_offset = _wsize * rankMultiple;
+				//gaspi_notification_id_t notifyID = notif_offset + _rank;
+				//TODO : CORRIGER CAR ARBRES PEUVENT AVOIR DES HAUTEURS DIFFERENTES
 				gaspi_notification_id_t notifyID = (iOct * _nivterm[iOct] * _wsize) + (level * _wsize) + _rank;
 				gaspi_size_t qty= count * _nst[iOct][level] * _nsp[iOct][level] * sizeof(complex);
 				
@@ -729,117 +1102,4 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 		}
 	}
 	add_time_sec("GASPI_FF_sendrecv", accumul);
-}
-
-void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
-{
-
-	// wait to receive all infos
-	int nbRecvExpected = 0;
-	for (int i=0; i<_wsize; i++)
-	{
-		if (_Expect[iOct][i][level]>0)
-		{
-			nbRecvExpected++;
-		}
-	}
-
-	/*int rankMultiple = level;
-	gaspi_notification_id_t notif_offset = _wsize * rankMultiple;*/
-	gaspi_notification_id_t notif_offset = (iOct * _nivterm[iOct] * _wsize) + (level * _wsize);
-	gaspi_notification_id_t new_notif_id;
-	gaspi_notification_t new_notif_val;
-	int recvCpt = 0;
-	int sender;
-	double t_begin, t_end;
-	
-	
-	while (recvCpt < nbRecvExpected)
-	{
-		t_begin = MPI_Wtime();
-		//methode 1 - avec GASPI_BLOCK
-		// ne surveille que les notifs du level
-		while(1)
-		{
-			SUCCESS_OR_DIE(
-				gaspi_notify_waitsome(
-					_seg_RecvBuffer_id,
-					notif_offset,				// surveille les notifications depuis 0
-					_wsize,						// en surveille wsize
-					&new_notif_id,
-					GASPI_BLOCK
-				)
-			);
-
-			SUCCESS_OR_DIE(
-				gaspi_notify_reset(
-					_seg_RecvBuffer_id, 
-					new_notif_id, 
-					&new_notif_val
-				)
-			);
-			
-			if (new_notif_val) 
-				break;
-		}
-		
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_RECV_notify_waitsome", t_end - t_begin);
-		add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
-		
-
-		// test the notification value and compare with array (I know, useless)
-		t_begin = MPI_Wtime();
-		if (new_notif_val)
-		{
-			recvCpt++;
-			sender = new_notif_id - notif_offset;
-			updateFarFields(sender, level, ff, iOct);
-		}
-		t_end = MPI_Wtime();
-		add_time_sec("FF_read_from_buffer", t_end - t_begin);
-	}
-}
-
-void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, int iOct)
-{		
-	int indexToC = -1;
-	int k = level + 1;
-	int octree_offset = iOct * _wsize;
-
-	// calcul de l'offset	
-	int levelOffset = 0;
-	for (int i=_nivterm[iOct] + indexToC; i>level; i--)
-	{
-		levelOffset += _nst[iOct][i] * _nsp[iOct][i] * _Expect[iOct][src][i];
-	}
-	int q = _RecvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
-	q += levelOffset; 	
-
-	// box range to recv, FROM RECV ARRAY
-	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;
-	int lastBoxToRecvIdx = _frecv[iOct][src+1]-1 + indexToC;
-
-    for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
-	{
-		int cellID = _recv[iOct][j] + indexToC;
-	
-		// test if box belongs to level 
-		if ( (cellID > _endlev[iOct][level-1]+indexToC) && (cellID <= _endlev[iOct][level]+indexToC) )
-		{
-			// update far fields
-			int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
-			p = p + indexToC;
-			
-			for (int st=0; st<_nst[iOct][level]; st++)
-			{
-				for (int sp=0; sp<_nsp[iOct][level]; sp++)
-				{
-					p++;
-					q++;
-					ff[p] = ff[p] + _RecvBuffer[q];
-				}
-			}
-		}
-	}
-}
+}*/

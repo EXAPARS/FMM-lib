@@ -74,6 +74,7 @@ void fmm_switch_to_gaspi_()
 }
 
 // Init
+/*
 void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 	i64 * sendnode, i64 * sendnode_sz, i64 * nb_recv, i64 * nb_recv_sz,
 	i64 * nb_send, i64 * nb_send_sz, i64 * nivterm, i64 * levcom,
@@ -97,7 +98,7 @@ void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 	}
 	// switch back to mpi
 	fmm_switch_to_mpi_();
-}
+}*/
 
 // FF
 void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom)
