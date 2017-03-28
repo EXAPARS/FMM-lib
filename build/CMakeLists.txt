@@ -50,8 +50,8 @@ set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")
 set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
 
 # ---------------- set compile FLAGS
-set (CMAKE_CXX_FLAGS "-g -fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
-set (MPI_COMPILE_FLAGS "-g -fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
+set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
+set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++14 -Wall -fopenmp -lcilkrts")
 
 
 # ---------------- set output library

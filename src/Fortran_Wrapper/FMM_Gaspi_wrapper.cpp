@@ -71,10 +71,10 @@ void fmm_switch_to_gaspi_()
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_switch_interop", t_end - t_begin);
 	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
-	
 }
 
 // Init
+/*
 void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 	i64 * sendnode, i64 * sendnode_sz, i64 * nb_recv, i64 * nb_recv_sz,
 	i64 * nb_send, i64 * nb_send_sz, i64 * nivterm, i64 * levcom,
@@ -98,24 +98,88 @@ void init_gaspi_ff_communicator_(i64 * recvnode,	i64 * recvnode_sz,
 	}
 	// switch back to mpi
 	fmm_switch_to_mpi_();
-}
+}*/
 
 // FF
-void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave)
+void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom)
 {
-	gCommFF->exchangeFFBulk(bufsave, ff);
+	//cout << "wrapper, bulk" << endl;
+	gCommFF->exchangeFFBulk(bufsave, ff, (int)(*idom)-1);
 }
 
-void gaspi_send_ff_(i64 * niv, complex * ff)
+void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
 {
-	gCommFF->send_ff_level((int)(*niv)-1, ff);
+	//cout << "toto" << endl;
+	//fflush(stdout);	
+	//printf("[ENTER] gaspi_send_ff_ , level : %d, domain : %d\n",((int)(*niv)-1), ((int)(*idom)-1));	
+	if(gCommFF)
+	{
+		gCommFF->send_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+	}
+	else
+	{
+		cerr << "[wrapper gaspi_send_ff] Gaspi M2L Communicator is not initialized !" << endl;
+		exit(-1);
+	}
+	//printf("[EXIT] gaspi_send_ff_ , level : %d, domain : %d\n",(int)(*niv)-1, (int)(*idom)-1);	
+	//fflush(stdout);
+
 }
 
-void gaspi_recv_ff_(i64 * niv, complex * ff)
+void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 {
-	gCommFF->recv_ff_level((int)(*niv)-1, ff);
+	//cout << "tata" << endl;
+	//fflush(stdout);
+	//printf("[ENTER] gaspi_recv_ff_ , level : %d, domain : %d\n",((int)(*niv)-1), ((int)(*idom)-1));	
+	
+	/*int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	if (rank==0)
+		printf("[%d] gaspi_recv_ff_ \n",	rank);*/
+	
+	if (gCommFF)
+	{
+		//cout << "into recv level" << (int)(*niv)-1 << "octree : " << (int)(*idom)-1 << endl;
+		gCommFF->recv_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+	}
+	else
+	{
+		cerr << "[wrapper gaspi_recv_ff] Gaspi M2L Communicator is not initialized !" << endl;
+		exit(-1);
+	}
 }
 
+// multimat version
+void gaspi_init_ff_(i64 * max_send, i64 * max_recv, i64 * nbMat, i64 * incLevcom)
+{
+	if (!gCommFF)
+	{
+		init_gaspi_ff((int)(*max_send), (int)(*max_recv), (int)(*nbMat), (int)(*incLevcom), gCommFF);
+	}
+}
+
+void gaspi_init_offsets_(i64 * recvnode, i64 * recvnode_sz, i64 * sendnode, i64 * sendnode_sz, i64 * nb_recv, 
+	i64 * nb_recv_sz, i64 * nb_send, i64 * nb_send_sz, i64 * idom, i64 * ndom,
+	i64 * nivterm, i64 * frecv, i64 * recv, i64 * levcom, i64 * endlev, 
+	i64 * fniv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, 
+	i64 * codech)
+{
+	//cout << "gaspi_init_offsets_ [ENTER]" << endl;
+	if(gCommFF)
+	{
+		gCommFF->init_gaspi_offsets(recvnode, (int)(*recvnode_sz), sendnode, (int)(*sendnode_sz), nb_recv, 
+			(int)(*nb_recv_sz), nb_send, (int)(*nb_send_sz), (int)(*idom)-1, (int)(*ndom), 
+			(int)(*nivterm), frecv, recv, (int)(*levcom), endlev, 
+			fniv, fsend, send, nst, nsp, 
+			codech);
+	}
+	else
+	{
+		cerr << "[wrapper gaspi_init_offsets]Gaspi M2L Communicator is not initialized !" << endl; exit(-1);
+	}
+
+	//cout << "gaspi_init_offsets_ [EXIT]" << endl;
+	fflush(stdout);
+}
 
 // Unk
 /*
@@ -160,5 +224,5 @@ void fmm_handle_unknowns_allreduce_()
 void fmm_dump_(complex * tab)
 {
 	int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-	dumpBuffer(mpi_rank, tab, 10, "fortran", "ne, ff");
+	dumpBuffer(mpi_rank, tab, 10, "fortran", "ff");
 }
