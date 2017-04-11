@@ -45,6 +45,9 @@ extern "C"
 	void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom);
 	void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom);
 	void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom);
+	void gaspi_task_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
+	void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom);
+
 
 	// unknowns
 	void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size);
@@ -54,7 +57,7 @@ extern "C"
 	void fmm_dump_(complex * tab);
 
 	// multimat
-	void gaspi_init_ff_(i64 * max_send, i64 * max_recv, i64 * nbMat, i64 * includeLevcom);
+	void gaspi_init_ff_(i64 * max_send_terms, i64 * max_recv_terms, i64 * nbMat, i64 * max_send_nodes, i64 * max_recv_nodes, i64 * includeLevcom);
 	void gaspi_init_offsets_(i64 * recvnode, i64 * recvnode_sz, i64 * sendnode, i64 * sendnode_sz, 
 		i64 * nb_recv, i64 * nb_recv_sz, i64 * nb_send, i64 * nb_send_sz, i64 * idom, i64 * ndom,
 		i64 * nivterm, i64 * frecv, i64 * recv, i64 * levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send,
