@@ -47,85 +47,81 @@ public:
  * GASPI SEGMENTS --> BUFFERS *
  ******************************/
 	/* FF Buffers */
-	gaspi_segment_id_t	_FF_sendBuf_seg_id;  						// Buffer d'envoi de FF
+	gaspi_segment_id_t	_FF_sendBuf_seg_id;  						// FF send Buffer
 	gaspi_pointer_t 	_FF_sendBuf_seg_ptr = nullptr;	
 	complex * 			_FF_sendBuffer = nullptr;
-	gaspi_segment_id_t 	_FF_recvBuf_seg_id;  						// Buffer de réception de FF
+	gaspi_segment_id_t 	_FF_recvBuf_seg_id;  						// FF receive Buffer
 	gaspi_pointer_t 	_FF_recvBuf_seg_ptr = nullptr;	
 	complex * 			_FF_recvBuffer = nullptr;
 	
-	/* FF INFOS Buffers */
-	gaspi_segment_id_t 	_Infos_sendbuf_seg_id;						// Buffer d'envoi d'infos
+	/* INFOS Buffers */
+	gaspi_segment_id_t 	_Infos_sendbuf_seg_id;						// Infos send Buffer
     gaspi_pointer_t 	_Infos_sendbuf_seg_ptr = nullptr;
     int * 				_Infos_sendbuffer = nullptr;
-    gaspi_segment_id_t 	_Infos_recvbuf_seg_id;						// Buffer de réception d'infos
+    gaspi_segment_id_t 	_Infos_recvbuf_seg_id;						// Infos receives Buffer
 	gaspi_pointer_t 	_Infos_recvbuf_seg_ptr = nullptr;
 	int * 				_Infos_recvbuffer = nullptr;
 
-/******************************
- * GASPI SEGMENTS --> OFFSETS *
- ******************************/
+/***********************************
+ * GASPI SEGMENTS --> SEND OFFSETS *
+ ***********************************/
+ 
 	/* FF remote send OFFSETS*/
-    gaspi_segment_id_t 	_FF_sendRemoteOffsets_seg_id; 				// Offsets for FF send buffer
+    gaspi_segment_id_t 	_FF_sendRemoteOffsets_seg_id; 				// Remote Offsets for FF send buffer
     gaspi_pointer_t 	_FF_sendRemoteOffsets_seg_ptr = nullptr;
-	int * 				_FF_sendRemoteOffsets = nullptr;			//-> send REMOTE offset (where to send on 	dest's recvff buffer)
+	int * 				_FF_sendRemoteOffsets = nullptr;			
 	
 	/* FF local send OFFSETS*/
-	int ** 				_FF_sendLocalOffsets = nullptr;	//-> send LOCAL offset	(where to send from src's  sendff buffer, by oct and dest)
-																	// par octree et par destinataire
-																	// ajouter un compteur si level ou tasks
+	int ** 				_FF_sendLocalOffsets = nullptr;				// Local Offsets for FF send buffer
+																	
 
 	/* INFOS remote send OFFSETS*/
-    gaspi_segment_id_t 	_Infos_sendRemoteOffsets_seg_id; 			// Offsets for Infos Send Buffer
+    gaspi_segment_id_t 	_Infos_sendRemoteOffsets_seg_id; 			// Remote Offsets for Infos Send Buffer
 	gaspi_pointer_t 	_Infos_sendRemoteOffsets_seg_ptr = nullptr;   
-    int * 				_Infos_sendRemoteOffsets = nullptr;			// -> send REMOTE offset (where to send on 	dest's recvinfo buffer)
+    int * 				_Infos_sendRemoteOffsets = nullptr;			
     
     /* INFOS local send OFFSETS*/
-    int **				_Infos_sendLocalOffsets = nullptr;
+    int **				_Infos_sendLocalOffsets = nullptr;			// Local Offsets for Infos Send Buffer
+
     
-/*****************************************************************
- * TEMPORARY GASPI SEGMENTS, ONLY USED TO COMPUTE REMOTE OFFSETS *
- *****************************************************************/
+/************************************
+ * GASPI SEGMENTS --> RECV OFFSETS  *
+ ************************************/
 	
 	/* FF recv OFFSETS*/		
-	gaspi_segment_id_t	_FF_recvOffsets_seg_id; 					// Offsets for FF recv buffer, /!\ ONLY used to compute _FF_sendRemoteOffsets_seg_id
+	gaspi_segment_id_t	_FF_recvOffsets_seg_id; 					// Offsets for FF recv buffer
 	gaspi_pointer_t 	_FF_recvOffsets_seg_ptr = nullptr;
 	int * 				_FF_recvOffsets = nullptr;
 	
 	/* INFOS RECV OFFSETS */    
-    gaspi_segment_id_t 	_Infos_recvOffsets_seg_id; 					// Offsets for Infos Recv Buffer, /!\ ONLY used to compute _Infos_sendRemoteOffsets_seg_id
+    gaspi_segment_id_t 	_Infos_recvOffsets_seg_id; 					// Offsets for Infos Recv Buffer
 	gaspi_pointer_t 	_Infos_recvOffsets_seg_ptr = nullptr;
     int * 				_Infos_recvOffsets = nullptr;
 
-/************************
- * GASPI MULTITHREADING *
- ************************/
-    
-    pthread_mutex_t * _mutexArray = nullptr; // array of mutexes
-    
+/************************************
+ * COUNTERS  *
+ ************************************/
+
+    int ** _FF_sendLocalOffsets_counter = nullptr;  					// Counter to add to _FF_sendLocalOffsets
+    int ** _FF_sendRemoteOffsets_counter = nullptr; 					// Counter to add to _FF_sendRemoteOffsets
+	
+	int ** _Infos_sendLocalOffsets_counter = nullptr; 				// Counter to add to _Infos_sendLocalOffsets
+	int ** _Infos_sendRemoteOffsets_counter = nullptr;				// Counter to add to _Infos_sendRemoteOffsets
+
+
 /*************************
  * GASPI ASYNC COMM DATA *
  *************************/    
 
-    int _nbQueues;
-
-    int ** _FF_sendLocalOffsets_keeper = nullptr;  // compteur à AJOUTER à _FF_sendLocalOffsets_byOctDest pour LEVEL ou TASK pointer (par oct et dest)
-    int ** _FF_sendRemoteOffsets_keeper = nullptr; // compteur à AJOUTER à _FF_sendRemoteOffsets (by oct dest) pour LEVEL ou TASK pointer
-	
-	int ** _Infos_sendLocalOffsets_keeper = nullptr; // compteur d'infos écrites dans le buffer d'envoi des infos
-	int ** _Infos_sendRemoteOffsets_keeper = nullptr;
-	
-	
     int *** _Expect = nullptr;		// per domain, per rank, per level
     int *** _start_send = nullptr;  // per domain, per rank, per level
     int *** _stop_send  = nullptr;  // per domain, per rank, per level
     int *** _count_send = nullptr;  // per domain, per rank, per level
     int *** _start_recv = nullptr;
     int *** _stop_recv  = nullptr;
-    
-
- //   int ** _send_infos_ptr = nullptr; // per octree, per dest
- //   int ** _recv_infos_ptr = nullptr; // per octree, per src    
+    int _nbQueues;
+    pthread_mutex_t * _mutexArray = nullptr; // array of mutexes
+          
     
 /******************
  * FORTRAN DATA   *
@@ -187,15 +183,15 @@ public:
 		i64 * nb_recv, int nb_recv_sz, i64 * nb_send, int nb_send_sz, int mat, int nbMat,
 		int nivterm, i64 * frecv, i64 * recv, int levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send, i64 * nst, i64 * nsp, i64 * codech);
 				
-	void fill_remote_send_offsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
-	void fill_local_send_offsets(i64 * sendnode, int sendnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
+	void fill_FF_sendRemoteOffsets(i64 * recvnode, int recvnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
+	void fill_FF_sendLocalOffsets(i64 * sendnode, int sendnode_sz, i64 * nb_recv, int nb_recv_sz, int iOct);
 	void fill_expectations(int iOct);
-	void fill_send_start_stop_count_send(int iOct);
+	void fill_send_start_stop_count(int iOct);
 	void fill_recv_start_stop(int iOct);
 	void fill_send_info_ptrs(int iOct);
-	void fill_recv_info_ptrs(int iOct);
-	void fill_remote_info_ptrs(int iOct);
-	void fill_info_sendLocalOffsets(int iOct);
+	void fill_Infos_recvOffsets(int iOct);
+	void fill_Infos_sendRemoteOffsets(int iOct);
+	void fill_Info_sendLocalOffsets(int iOct);
 	
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
