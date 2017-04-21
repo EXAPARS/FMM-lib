@@ -1174,13 +1174,13 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 	
 	// variables précalculables
 	int __nstnsp = _nst[iOct][level]*_nsp[iOct][level];
-	thread_local bool levelComplete = false;
+	bool levelComplete = false;
 	
 	// remplissage des buffers
 	for (int dest=0; dest<_wsize; dest++)
 	{						
 		
-		pthread_mutex_lock(&_mutexArray[octree_offset]);
+		//pthread_mutex_lock(&_mutexArray[octree_offset]);
 		if (dest != _rank)
 		{
 			int counter =  _count_send[iOct][dest][level];
@@ -1198,24 +1198,26 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 						int cellID = cellIDf + indexToC;
 						
 						// PROTECTION DES COMPTEURS D'OFFSETS de DATA et INFOS 
-						//pthread_mutex_lock(&_mutexArray[octree_offset + dest]);
+						pthread_mutex_lock(&_mutexArray[octree_offset + dest]);
 						{
 							int q = _FF_sendLocalOffsets[iOct][dest] + _FF_sendLocalOffsets_counter[iOct][dest];
 							_FF_sendLocalOffsets_counter[iOct][dest] += _nst[iOct][level]*_nsp[iOct][level];
 							
-							int idxInfos =_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendLocalOffsets_counter[iOct][dest]; // CECI est un COMPTEUR !!!
+							int idxInfos =_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendLocalOffsets_counter[iOct][dest];
 							_Infos_sendLocalOffsets_counter[iOct][dest] += 1;
 						
 							// Ecriture des DATA et des INFOS		
 							int p=_fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
-							_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp]; /*for (int i=0; i<__nstnsp; i++) _FF_sendBuffer[q+i] = ff[p+i];*/
+							_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp]; 
 							_Infos_sendbuffer[idxInfos] = i-firstBox;	
+						}
+						pthread_mutex_unlock(&_mutexArray[octree_offset + dest]);
+
 							
-							
-							// SI LE NIVEAU EST FINI : ENVOI
+							// SI LE NIVEAU EST FINI : ENVOI {Pas de mutex car : envoi => dernier à écrire => plus personne n'écrit
+							/*FIXME : COMMENT S'ASSURER QUE QUE TOUT LE MONDE A BIEN FINI D'ECRIRE SES DONNEES DANS LE BUFFER */
 							if (_Infos_sendLocalOffsets_counter[iOct][dest] == _count_send[iOct][dest][level])
 							{	
-								// levelComplete = true;
 								_Infos_sendLocalOffsets_counter[iOct][dest]=0;
 								flush_queues(_nbQueues);
 				
@@ -1292,13 +1294,11 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 									}
 								}
 							} 
-						}
-						//pthread_mutex_unlock(&_mutexArray[octree_offset + dest]);
-					}// if cellID est dans l'intervalles des cells à envoyer
+					}
 				}	
 			}
 		}
-		pthread_mutex_unlock(&_mutexArray[octree_offset]);
+		//pthread_mutex_unlock(&_mutexArray[octree_offset]); // ICI ça marche, mais c'est trash !
 	}
 }
 
