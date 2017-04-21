@@ -31,7 +31,7 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 			int firstBoxToSendIDX= _fsend[iOct][dest] + indexToC;
 			int lastBoxToSendIDX = _fsend[iOct][dest+1]-1 + indexToC;
 			
-			int q = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] - 1 /*+ _FF_sendLocalOffsets_keeper[iOct][dest]*/;
+			int q = _FF_sendLocalOffsets/*[octree_offset + dest]*/[iOct][dest] - 1;
 			cout << std::scientific;
 			// remplissage du buffer d'envoi, par ordre décroissant
 			for (int k = lastBoxToSendIDX; k>=firstBoxToSendIDX; k--)
@@ -112,7 +112,7 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 		{
 			if (_nb_send[iOct][dest] > 0) // if something to send
 			{
-				local_offset  = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] * sizeof(complex);
+				local_offset  = _FF_sendLocalOffsets[/*octree_offset + dest*/iOct][dest] * sizeof(complex);
 				remote_offset = _FF_sendRemoteOffsets[octree_offset + dest] * sizeof(complex);
 				qty = _nb_send[iOct][dest] * sizeof(complex);
 				
@@ -293,12 +293,18 @@ void Gaspi_FF_communicator::alloc_attributes()
 	_FF_sendLocalOffsets_keeper = new int*[_nbOct]();			//write into segment
 	for (int i=0; i<_nbOct; i++)
 		_FF_sendLocalOffsets_keeper[i] = new int[_wsize]();
+
+	/*_FF_sendLocalOffsets = new int[_wsize * _nbOct](); //  FF Local SEND offsets x nb of octrees (=nb materials)*/
+	
+	_FF_sendLocalOffsets = new int*[_nbOct]();
+		for (int i=0; i<_nbOct; i++)
+			_FF_sendLocalOffsets[i] =  new int[_wsize]();
 		
 	_FF_sendRemoteOffsets_keeper = new int*[_nbOct]();		//send from segment
 	for (int i=0; i<_nbOct; i++)
 		_FF_sendRemoteOffsets_keeper[i] = new int[_wsize]();		
 
-	_FF_sendLocalOffsets_byOctDest = new int[_wsize * _nbOct](); //  FF Local SEND offsets x nb of octrees (=nb materials)
+
 
 	_Expect = new int**[_nbOct]();
 	for (int i=0; i<_nbOct; i++)
@@ -734,7 +740,7 @@ void Gaspi_FF_communicator::fill_local_send_offsets(i64 * sendnode, int sendnode
 			int to = sendnode[k]-1;
 			if (to != _rank)
 			{
-				_FF_sendLocalOffsets_byOctDest[octree_offset + to] = SendBufferIndexPerROUND[k];
+				_FF_sendLocalOffsets[/*octree_offset + to*/iOct][to] = SendBufferIndexPerROUND[k];
 			}
 			else
 			{
@@ -743,7 +749,7 @@ void Gaspi_FF_communicator::fill_local_send_offsets(i64 * sendnode, int sendnode
 			}
 		}
     }  
-	_FF_sendLocalOffsets_byOctDest[octree_offset + _rank] = -1;
+	_FF_sendLocalOffsets[/*octree_offset + _rank*/iOct][_rank] = -1;
 		
 	// delete
 	delete [] SendBufferIndexPerROUND;
@@ -1070,7 +1076,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 	{
 		if (dest != _rank)
 		{
-			int q = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] - 1 + _FF_sendLocalOffsets_keeper[iOct][dest];
+			int q = _FF_sendLocalOffsets[/*octree_offset*/iOct][dest] - 1 + _FF_sendLocalOffsets_keeper[iOct][dest];
 			int q0 = q + 1; 
 
 			int counter =  _count_send[iOct][dest][level];
@@ -1107,7 +1113,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 			if (counter > 0)
 			{
 				// local offset
-				gaspi_offset_t local_dest_offset = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] * sizeof(complex);
+				gaspi_offset_t local_dest_offset = _FF_sendLocalOffsets[/*octree_offset + */iOct][dest] * sizeof(complex);
 				gaspi_offset_t level_offset = _FF_sendLocalOffsets_keeper[iOct][dest] * sizeof(complex);
 				gaspi_offset_t local_offset = local_dest_offset + level_offset;
 				gaspi_queue_id_t queue=0;
@@ -1196,7 +1202,7 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 						// PROTECTION DES COMPTEURS D'OFFSETS de DATA et INFOS 
 						//pthread_mutex_lock(&_mutexArray[octree_offset + dest]);
 						{
-							int q = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] + _FF_sendLocalOffsets_keeper[iOct][dest];
+							int q = _FF_sendLocalOffsets[/*octree_offset + */iOct][dest] + _FF_sendLocalOffsets_keeper[iOct][dest];
 							_FF_sendLocalOffsets_keeper[iOct][dest] += _nst[iOct][level]*_nsp[iOct][level];
 							
 							int idxInfos =_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendLocalOffsets_keeper[iOct][dest]; // CECI est un COMPTEUR !!!
@@ -1216,8 +1222,8 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 								flush_queues(_nbQueues);
 				
 								// local FF send offset
-								gaspi_offset_t local_dest_offset = _FF_sendLocalOffsets_byOctDest[octree_offset + dest] * sizeof(complex);
-								gaspi_offset_t level_offset = _FF_sendRemoteOffsets_keeper[iOct][dest] * sizeof(complex);/*_FF_sendLocalOffsets_keeper[iOct][dest] * sizeof(complex);*/
+								gaspi_offset_t local_dest_offset = _FF_sendLocalOffsets[/*octree_offset + */iOct][dest] * sizeof(complex);
+								gaspi_offset_t level_offset = _FF_sendRemoteOffsets_keeper[iOct][dest] * sizeof(complex);
 								gaspi_offset_t local_offset = local_dest_offset + level_offset;
 								gaspi_queue_id_t queue=0;
 								

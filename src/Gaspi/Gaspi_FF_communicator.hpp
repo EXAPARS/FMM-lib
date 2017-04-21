@@ -71,7 +71,7 @@ public:
 	int * 				_FF_sendRemoteOffsets = nullptr;			//-> send REMOTE offset (where to send on 	dest's recvff buffer)
 	
 	/* FF local send OFFSETS*/
-	int * 				_FF_sendLocalOffsets_byOctDest = nullptr;	//-> send LOCAL offset	(where to send from src's  sendff buffer, by oct and dest)
+	int ** 				_FF_sendLocalOffsets = nullptr;	//-> send LOCAL offset	(where to send from src's  sendff buffer, by oct and dest)
 																	// par octree et par destinataire
 																	// ajouter un compteur si level ou tasks
 
