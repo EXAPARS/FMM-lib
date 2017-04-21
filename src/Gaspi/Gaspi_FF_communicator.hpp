@@ -81,7 +81,7 @@ public:
     int * 				_Infos_sendRemoteOffsets = nullptr;			// -> send REMOTE offset (where to send on 	dest's recvinfo buffer)
     
     /* INFOS local send OFFSETS*/
-    // ???
+    int **				_Infos_sendLocalOffsets = nullptr;
     
 /*****************************************************************
  * TEMPORARY GASPI SEGMENTS, ONLY USED TO COMPUTE REMOTE OFFSETS *
@@ -132,9 +132,9 @@ public:
  ******************/
     i64 ** _fniv = nullptr;			// pour chaque niveau, @ dans FF du dernier terme de ce niveau
     i64 ** _fsend = nullptr;		// pour chaque rank, @ dans send de la 1ere cellule à échanger
-    i64 ** _send = nullptr;			// liste des cellules à echanger, par octree
+    i64 ** _send = nullptr;			// liste des cellules à envoyer,  par octree
     i64 ** _frecv = nullptr;
-    i64 ** _recv = nullptr;
+    i64 ** _recv = nullptr;			// liste des cellules à recevoir, par octree
     i64 ** _nst = nullptr;			// nb d'angles en theta	
     i64 ** _nsp = nullptr;			// nb d'angles en phi
     i64 ** _endlev = nullptr;
@@ -195,6 +195,7 @@ public:
 	void fill_send_info_ptrs(int iOct);
 	void fill_recv_info_ptrs(int iOct);
 	void fill_remote_info_ptrs(int iOct);
+	void fill_info_sendLocalOffsets(int iOct);
 	
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
