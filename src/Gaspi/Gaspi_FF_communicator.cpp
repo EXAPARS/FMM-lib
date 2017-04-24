@@ -1259,10 +1259,10 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 								// envoi des INFO et NOTIFICATION
 								SUCCESS_OR_DIE(
 									gaspi_write_notify( 
-										_Infos_sendbuf_seg_id,					// local seg ID
+										_Infos_sendbuf_seg_id,				// local seg ID
 										local_offset,						// local offset
 										dest,								// receiver rank
-										_Infos_recvbuf_seg_id,					// remote seg ID
+										_Infos_recvbuf_seg_id,				// remote seg ID
 										remote_offset,						// remote offset
 										qty,								// size of data to write
 										notifyID,							// remote notif ID
@@ -1277,9 +1277,9 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 								{
 									if (level == _levcom[iOct] + indexToC +1 ) // +1 if comm at the top of tree is invalidated
 									{
-										_FF_sendLocalOffsets_counter[iOct][dest] = 0;
-										_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
+										//_FF_sendLocalOffsets_counter[iOct][dest] = 0; --> Laissé au gaspi_send _ff_level
 										_FF_sendRemoteOffsets_counter[iOct][dest] = 0;
+										_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
 										_Infos_sendRemoteOffsets_counter[iOct][dest] = 0;
 									}
 								}
@@ -1288,8 +1288,8 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 									if (level == _levcom[iOct] + 1 + indexToC)
 									{
 										_FF_sendLocalOffsets_counter[iOct][dest] = 0;
-										_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
 										_FF_sendRemoteOffsets_counter[iOct][dest] = 0;
+										_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
 										_Infos_sendRemoteOffsets_counter[iOct][dest] = 0;
 									}
 								}
