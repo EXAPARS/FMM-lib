@@ -45,9 +45,13 @@ void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * n
 	i64 * endlev, i64 * nbLevels);
 
 
-void debug(string message);
+void debug(string prefix, string message);
 
 string convert(int a);
+
+void accumulMSG(string message);
+
+void dumpMSG(string prefix);
 
 
 /** templates **/
@@ -90,7 +94,7 @@ void dump_tree_close_file(int rank);
 /** DIFF DATA **/
 void loadAndDiffData(const string & file1, const string & file2);
 
-
+string itoa(int a);
 
 
 #endif

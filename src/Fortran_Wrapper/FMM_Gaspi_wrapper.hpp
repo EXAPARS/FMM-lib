@@ -54,7 +54,7 @@ extern "C"
 	void fmm_handle_unknowns_allreduce_();
 	
 	// debug tools
-	void fmm_dump_(complex * tab);
+	void fmm_dump_(complex * tab, i64 * size);
 
 	// multimat
 	void gaspi_init_ff_(i64 * max_send_terms, i64 * max_recv_terms, i64 * nbMat, i64 * max_send_nodes, i64 * max_recv_nodes, i64 * includeLevcom);
@@ -62,6 +62,8 @@ extern "C"
 		i64 * nb_recv, i64 * nb_recv_sz, i64 * nb_send, i64 * nb_send_sz, i64 * idom, i64 * ndom,
 		i64 * nivterm, i64 * frecv, i64 * recv, i64 * levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send,
 		i64 * nst, i64 * nsp, i64 * codech);
+	void fmm_finalize_dump_vector_();
+	void raz_buffers_(i64 * max_send_terms, i64 * max_recv_terms, i64 * max_send_nodes, i64 * max_recv_nodes);		
 }
 
 #endif

@@ -120,7 +120,6 @@ public:
     int *** _start_recv = nullptr;
     int *** _stop_recv  = nullptr;
     int _nbQueues;
-    pthread_mutex_t * _mutexArray = nullptr; // array of mutexes
           
     
 /******************
@@ -196,6 +195,10 @@ public:
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
 	void alloc_attributes();
+	
+	//debug
+	void fmm_raz_gaspi_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
+	void send_chunk(int iOct, int dest, int level);
 };
 
 void construct_m2l_communicator(

@@ -17,12 +17,13 @@
 */
 #include "fmm_tools.hpp"
 
+vector<string> msg;
+
 void announce_axis(string axis, int rank)
 {
-cout << "======================= " << endl;
-cout << "=        "<< axis <<"        | "<< rank << " |" << endl;
-cout << "======================= " << endl;	
-	
+	cout << " ======================= " << endl;
+	cout << " =        "<< axis <<"   | "<< rank << " |" << endl;
+	cout << " ======================= " << endl;
 }
 
 void displayHexa2Dim(string info, ui64 ** tab, int dim1, int dim2)
@@ -39,7 +40,6 @@ void displayDiff (string info, int * tab, int size)
 	for (int i=1; i<size; i++)
 		cout << tab[i] - tab[i-1] << endl;
 }
-
 
 void displayMpiMSG (int source, int tag)
 {
@@ -78,14 +78,37 @@ void displayMpiMSG (int source, int tag)
 	}
 }
 
-void debug(string message)
+void debug(string prefix, string message)
 {
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	string file = "debug_" + to_string((unsigned long long)rank);
+	string file = prefix + "_" + to_string((unsigned long long)rank) + ".txt";
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	out << message << endl;
 	out.close();
+}
+
+void accumulMSG(string message)
+{
+	msg.push_back(message);
+}
+
+void dumpMSG(string prefix)
+{
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	string file = prefix + "_" + to_string((unsigned long long)rank) + ".txt";
+	ofstream out;
+	out.open (file, std::ofstream::out | std::ofstream::app);
+	for (auto i:msg)
+		out << i << endl;
+	out.close();
+	msg.clear();	
+}
+
+
+string itoa(int a)
+{
+	 return to_string((long long)(a));
 }
 
 void dump_tree_init(int rank)
