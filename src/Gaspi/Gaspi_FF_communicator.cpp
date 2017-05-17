@@ -7,7 +7,12 @@ using namespace std;
 
 void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int iOct)
 {
-	//cout << "GASPI BULK" << endl;
+	//dumpBuffer(_rank, _codech[iOct], 8000, "toto", "");
+	//void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
+
+	//cout << "GASPI BULK - exchange begin" << endl;
+	//fflush(stdout);
+	
 	int indexToC = -1;
 	double t_begin, t_end, accumul;
 	accumul = 0;
@@ -19,7 +24,7 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 	t_end = MPI_Wtime();
 	add_time_sec("GASPI_SEND_wait_queue", t_end - t_begin);
 	accumul = accumul + (t_end - t_begin);	
-	int p2;
+	
 	// PREPARATION _FF_sendBuffer
 	for (int dest=0; dest<_wsize; dest++)
 	{
@@ -40,23 +45,26 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 				int p;
 				int cellID = _send[iOct][k] + indexToC;
 
-				if ((_levcom[iOct]<=3 || (_levcom[iOct] == 4 && _nivterm[iOct]>8))  && (cellID < _endlev[iOct][_levcom[iOct] + indexToC]))
+				if ((_levcom[iOct]<=3 || (_levcom[iOct] == 4 && _nivterm[iOct]>8))  && (cellID <  _endlev[iOct][_levcom[iOct] + indexToC] + indexToC))
 					todo = false;
-				if ((_levcom[iOct]>4  || (_levcom[iOct] == 4 && _nivterm[iOct]<=8)) && (cellID <= _endlev[iOct][_levcom[iOct]-1 + indexToC]))
+				if ((_levcom[iOct]>4  || (_levcom[iOct] == 4 && _nivterm[iOct]<=8)) && (cellID <= _endlev[iOct][_levcom[iOct]-1 + indexToC] + indexToC))
 					todo = false;
 
 				if (todo)
 				{
 					// place k pour que k = niveau de la cellule à envoyer
-					while(cellID <= _endlev[iOct][niv-1 + indexToC])
+					while(cellID <= _endlev[iOct][niv-1 + indexToC] + indexToC)
 						niv--;
 					
 					// cas 1 : 
 					// si l est commun à +ieurs noeuds
 					// communique les données sauvegardées dans BUFSAVE
-					if (_codech[iOct][cellID + indexToC] > 1)
+					//debug("to_" + convert(dest), convert(cellID));
+					if (_codech[iOct][cellID] > 1)
 					{
-						p=_codech[iOct][cellID + indexToC]-2;
+						p = _codech[iOct][cellID]-2;
+						//debug("to_" + convert(dest), convert(cellID) + " sendBuf : " + convert(q) +  " bufsave " + convert(p+indexToC) + " p : " + convert(p));	
+						
 						for (int st=0; st<_nst[iOct][niv + indexToC]; st++)
 						{
 							for (int sp=0; sp<_nsp[iOct][niv + indexToC]; sp++)
@@ -70,7 +78,8 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 					else
 					{
 						// calcule le bon index pour p (= offset)
-						p=_fniv[iOct][niv+1 + indexToC]+(_endlev[iOct][niv + indexToC]-cellID + indexToC)*_nst[iOct][niv + indexToC]*_nsp[iOct][niv + indexToC];						
+						p=_fniv[iOct][niv+1 + indexToC]+(_endlev[iOct][niv + indexToC]+indexToC-cellID)*_nst[iOct][niv + indexToC]*_nsp[iOct][niv + indexToC];
+						//debug("to_" + convert(dest), convert(cellID) + " sendBuf : " + convert(q) +  "ff " + convert(p+indexToC));	
 
 						// communique  nst(niveau) x nsp(niveau) complexes depuis FF
 						for (int st=0; st<_nst[iOct][niv + indexToC]; st++)
@@ -87,6 +96,7 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 			}
 		}
 	}
+
 	t_end = MPI_Wtime();
 	add_time_sec("FF_write_to_buffer", t_end - t_begin);
 	t_begin = MPI_Wtime();
@@ -208,13 +218,16 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 			add_time_sec("FF_read_from_buffer", t_end_loop - t_begin_loop);
 		}
 	}
+
+	//cout << "GASPI BULK - exchange out" << endl; 
+	//fflush(stdout);
 }
 
 void Gaspi_FF_communicator::updateFarFields(int src, complex * ff, int iOct)
 {		
 	int indexToC = -1;
 	int k = _nivterm[iOct];
-	int srcF=src+1;
+	int srcF = src+1;
 	
 	int octree_offset = iOct * _wsize;
 	int qp =_FF_recvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
@@ -237,7 +250,7 @@ void Gaspi_FF_communicator::updateFarFields(int src, complex * ff, int iOct)
 				k--;
 			
 			// update far fields
-			int pp = _fniv[iOct][k+1 + indexToC]+(_endlev[iOct][k + indexToC]-p)*_nst[iOct][k + indexToC]*_nsp[iOct][k + indexToC];
+			int pp = _fniv[iOct][k+1 + indexToC]+(_endlev[iOct][k + indexToC] - p )*_nst[iOct][k + indexToC]*_nsp[iOct][k + indexToC];
 			
 			for (int st=0; st<_nst[iOct][k + indexToC]; st++)
 			{
