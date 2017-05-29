@@ -1373,7 +1373,7 @@ void Gaspi_FF_communicator::send_chunk(int iOct, int dest, int level)
 	// Une fois tout fini, reset ou non le tableau d'offsets
 	if(_incLevcom)
 	{
-		if (level == _levcom[iOct] + indexToC + 1 ) // +1 if comm at the top of tree is invalidated OR gaspi_ff_send/recv OR ALLREDUCE
+		if (level == _levcom[iOct] + indexToC /*+ 1*/ ) // +1 if comm at the top of tree is invalidated OR gaspi_ff_send/recv OR ALLREDUCE
 		{
 			_FF_sendLocalOffsets_counter[iOct][dest] = 0;// --> Laissé au gaspi_ff_send at top of tree level
 			_FF_sendRemoteOffsets_counter[iOct][dest] = 0;
