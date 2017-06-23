@@ -23,6 +23,7 @@
 #include "types.hpp"
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <fstream> 
 #include <cmath>
 #include <algorithm>
@@ -48,6 +49,14 @@ void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * n
 void debug(string prefix, string message);
 
 string convert(int a);
+template <typename T>
+string to_string(T const& value)
+{
+	stringstream sstr;
+	sstr << value;
+	return sstr.str();
+}
+
 
 void accumulMSG(string message);
 

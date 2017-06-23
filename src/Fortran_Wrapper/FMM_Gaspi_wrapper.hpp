@@ -25,7 +25,6 @@
 #include "../Gaspi/Gaspi_FF_communicator.hpp"
 #include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
 
-
 extern "C"
 {
 	// start stop, switch 
@@ -47,7 +46,8 @@ extern "C"
 	void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom);
 	void gaspi_task_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
 	void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom);
-
+	void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
+	void gaspi_task_chunk_recv_ff_(i64 * niv, complex * ff, i64 * idom);
 
 	// unknowns
 	void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size);
@@ -63,7 +63,7 @@ extern "C"
 		i64 * nivterm, i64 * frecv, i64 * recv, i64 * levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send,
 		i64 * nst, i64 * nsp, i64 * codech);
 	void fmm_finalize_dump_vector_();
-	void raz_buffers_(i64 * max_send_terms, i64 * max_recv_terms, i64 * max_send_nodes, i64 * max_recv_nodes);		
+	void raz_buffers_(i64 * max_send_terms, i64 * max_recv_terms, i64 * max_send_nodes, i64 * max_recv_nodes);
 }
 
 #endif

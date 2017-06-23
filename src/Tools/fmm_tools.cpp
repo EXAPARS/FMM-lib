@@ -81,7 +81,7 @@ void displayMpiMSG (int source, int tag)
 void debug(string prefix, string message)
 {
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	string file = prefix + "_" + to_string((unsigned long long)rank) + ".txt";
+	string file = to_string((unsigned long long)rank) + "_" + prefix + ".txt";
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	out << message << endl;
@@ -349,7 +349,6 @@ void loadAndDiffData(const string & file1, const string & file2)
 			{
 				cout << cpt << " values did not pass the test at : " << diffMax << endl;
 			}
-			
 		}
 		else
 		{

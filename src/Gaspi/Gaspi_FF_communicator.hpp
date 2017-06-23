@@ -108,6 +108,12 @@ public:
 	int ** _Infos_sendLocalOffsets_counter = nullptr; 				// Counter to add to _Infos_sendLocalOffsets
 	int ** _Infos_sendRemoteOffsets_counter = nullptr;				// Counter to add to _Infos_sendRemoteOffsets
 
+/************************************
+ * KEEPERS  *
+ ************************************/
+
+    int ** _FF_sendLocalOffsets_keeper = nullptr;  					// Keeper to remain where to send from, for FF  
+	int ** _Infos_sendLocalOffsets_keeper = nullptr; 				// Keeper to remain where to send from, for Infos 
 
 /*************************
  * GASPI ASYNC COMM DATA *
@@ -120,6 +126,8 @@ public:
     int *** _start_recv = nullptr;
     int *** _stop_recv  = nullptr;
     int _nbQueues;
+    int *** _Received = nullptr;		// per domain, per level
+    int * _accumul = nullptr;;
           
     
 /******************
@@ -147,6 +155,13 @@ public:
 	int _incLevcom;
 	int _nbOct; 
 
+/**************************
+ * NEW MESSAGE INDEXING   *
+ **************************/
+	int _msgID;
+	int _max_comm;
+
+
 public:
 	Gaspi_FF_communicator(i64 * nb_send, int nb_send_sz, i64 * nb_recv, int nb_recv_sz, i64 * sendnode, int sendnode_sz,
 		i64 * recvnode, int recvnode_sz, int nivterm, int levcom, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, 
@@ -169,12 +184,16 @@ public:
 	void updateFarFields(int src, int level, complex * ff);
 	void updateFarFields(int src, int level, complex * ff, int iOct);
 	void updateFarFieldsFromInfos(int src, int level, complex * ff, int counter, int iOct);
+	void updateFarFieldChunksFromInfos(int src, int level, complex * ff, int counter, int iOct);
+
 	
 	// gaspi overlap
 	void send_ff_level(int level, complex * ff, int iOct);
 	void recv_ff_level(int level, complex * ff, int iOct);
 	void send_task_ff_level(int level, complex * ff, int iOct, int start, int stop);
 	void recv_task_ff_level(int level, complex * ff, int iOct);
+	void recv_task_ff(int level, complex * ff, int iOct);
+	void send_task_ff(int level, complex * ff, int iOct, int start, int stop);
 
 	// multimat version
 	void create_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
@@ -199,6 +218,7 @@ public:
 	//debug
 	void fmm_raz_gaspi_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
 	void send_chunk(int iOct, int dest, int level);
+	void send_chunk(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);
 };
 
 void construct_m2l_communicator(
