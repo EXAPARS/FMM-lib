@@ -1151,8 +1151,8 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 				for (int k=lastBox; k>=firstBox; k--)
 				{
 					int cellID = _send[iOct][k] + indexToC;
-					if (level == 4)
-						debug("send", to_string((long long)(cellID)));
+					/*if (level == 4)
+						debug("send", to_string((long long)(cellID)));*/
 					int p=_fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
 					q = q0 + (lastBox-k)*__nstnsp;
 					_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp];
@@ -1948,8 +1948,8 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 		{
 			q = q0 + (lastBox-j)*__nstnsp;		
 			int cellID = __recv[j] + indexToC; 
-			if(level ==4)
-				debug("recv", "iOct : " + itoa(iOct) + " from " + itoa(src) + " level " + itoa(level) + " " + itoa(cellID)/* + " index " + itoa(j)*/);
+			/*if(level ==4)
+				debug("recv", "iOct : " + itoa(iOct) + " from " + itoa(src) + " level " + itoa(level) + " " + itoa(cellID) + " index " + itoa(j));*/
 			int p0 = __fnivnextlev + ((__endlev-cellID)*__nstnsp);					
 			ff[p0:__nstnsp] = ff[p0:__nstnsp] + _FF_recvBuffer[q:__nstnsp];
 		}
