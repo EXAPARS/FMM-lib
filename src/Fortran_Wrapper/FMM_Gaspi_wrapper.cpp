@@ -197,7 +197,7 @@ void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 
 void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom)
 {
-	//pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mutex);
 
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 		
@@ -208,8 +208,8 @@ void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff,
 	
 	if(gCommFF)
 	{
-		//gCommFF->send_task_ff((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
-		gCommFF->send_task_ff_reorg((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
+		gCommFF->send_task_ff((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
+		//gCommFF->send_task_ff_reorg((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
 
 	}
 	else
@@ -222,7 +222,7 @@ void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff,
 	//dumpMSG("send_task_ff");
 	//debug("in_out", convert(rank) + "exit gaspi_task_send_ff_");
 	//fflush(stdout);
-	//pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mutex);
 }
 
 void gaspi_task_chunk_recv_ff_(i64 * niv, complex * ff, i64 * idom)
@@ -297,8 +297,7 @@ void gaspi_init_offsets_(i64 * recvnode, i64 * recvnode_sz, i64 * sendnode, i64 
 		gCommFF->init_gaspi_offsets(recvnode, (int)(*recvnode_sz), sendnode, (int)(*sendnode_sz), nb_recv, 
 			(int)(*nb_recv_sz), nb_send, (int)(*nb_send_sz), (int)(*idom)-1, (int)(*ndom), 
 			(int)(*nivterm), frecv, recv, (int)(*levcom), endlev, 
-			fniv, fsend, send, nst, nsp, 
-			codech);
+			fniv, fsend, send, nst, nsp, codech);
 	}
 	else
 	{
