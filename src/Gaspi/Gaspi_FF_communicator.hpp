@@ -160,7 +160,7 @@ public:
  **************************/
 	int _msgID;
 	int _max_comm;
-
+	pthread_mutex_t _mutex;
 
 public:
 	Gaspi_FF_communicator(i64 * nb_send, int nb_send_sz, i64 * nb_recv, int nb_recv_sz, i64 * sendnode, int sendnode_sz,
@@ -194,6 +194,8 @@ public:
 	void recv_task_ff_level(int level, complex * ff, int iOct);
 	void recv_task_ff(int level, complex * ff, int iOct);
 	void send_task_ff(int level, complex * ff, int iOct, int start, int stop);
+	void send_task_ff_reorg(int level, complex * ff, int iOct, int start, int stop);
+
 
 	// multimat version
 	void create_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
@@ -219,6 +221,10 @@ public:
 	void fmm_raz_gaspi_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
 	void send_chunk(int iOct, int dest, int level);
 	void send_chunk(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);
+	void send_chunk_reorg(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished,
+		gaspi_offset_t local_offset_ff, gaspi_offset_t remote_offset_ff, gaspi_size_t qty_ff,
+		gaspi_offset_t local_offset_infos, gaspi_offset_t remote_offset_infos, gaspi_size_t qty_infos);
+
 };
 
 void construct_m2l_communicator(
@@ -247,5 +253,6 @@ void construct_m2l_communicator(
 // seg global recv buffer
 #define SEND_DATA 100
 #define NO_DATA 101
+
 
 #endif
