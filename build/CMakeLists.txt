@@ -34,16 +34,16 @@ set (NMTOOLS_LIB 		"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/libNMToolk
 set (NMTOOLS_INCLUDE 	"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT")
 
 # ---------------- Boost
-set (BOOST_MPI_LIB 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_mpi.so")
-set (BOOST_SERIALIZATION_LIB "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_serialization.so")
+set (BOOST_MPI_LIB 		"/Cci/Tmp/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_mpi.so")
+set (BOOST_SERIALIZATION_LIB "/Cci/Tmp/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_serialization.so")
 set (BOOST_LIB 
 		${BOOST_MPI_LIB} 
 		${BOOST_SERIALIZATION_LIB}
 	)
-set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
+set (BOOST_INCLUDE 		"/Cci/Tmp/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
 
 # ---------------- GASPI
-set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
+set (GASPI_DIR "/Cci/Tmp/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
 set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
 set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")

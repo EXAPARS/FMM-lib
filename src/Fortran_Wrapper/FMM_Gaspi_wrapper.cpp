@@ -142,31 +142,15 @@ void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
  */
 void gaspi_task_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom)
 {
-	pthread_mutex_lock(&mutex);
-
-	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-
-	//debug("in_out", convert(rank) + "enter gaspi_task_send_ff_");
-	//printf("[%d][ENTER] gaspi_task_send_ff_ , level : %d, domain : %d, start : %d - stop %d\n", rank, ((int)(*niv)-1), ((int)(*idom)-1), (int)(*start), (int)(*stop));	
-	//fflush(stdout);
-	
 	if(gCommFF)
 	{
 		gCommFF->send_task_ff_level((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));
-		
 	}
 	else
 	{
 		cerr << "[wrapper gaspi_send_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
-	//printf("[%d][EXIT] gaspi_task_send_ff_ , level : %d, domain : %d, start : %d - stop %d\n", rank, ((int)(*niv)-1), ((int)(*idom)-1), (int)(*start), (int)(*stop));	
-	//fflush(stdout);	
-	//dumpMSG("send_task_ff");
-		//debug("in_out", convert(rank) + "exit gaspi_task_send_ff_");
-	//	fflush(stdout);
-	//}
-	pthread_mutex_unlock(&mutex);
 }
 
 void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom)
