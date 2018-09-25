@@ -29,8 +29,8 @@
 #include "../Tools/fmm_tools.hpp"
 #include <cilk/cilk.h>
 
-#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
-#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/byteCounter.hpp"
+#include "measure.hpp"
+#include "byteCounter.hpp"
 
 
 #include <iostream>

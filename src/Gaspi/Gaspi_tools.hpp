@@ -24,8 +24,8 @@
 #include <iostream>
 
 #include "../Tools/Complex.hpp"
-#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
-#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/byteCounter.hpp"
+#include "measure.hpp"
+#include "byteCounter.hpp"
 
 void flush_queues(int nbQueues);
 

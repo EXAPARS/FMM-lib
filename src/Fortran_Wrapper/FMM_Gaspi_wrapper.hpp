@@ -23,7 +23,7 @@
 #include "GASPI.h"
 #include "../Tools/Complex.hpp"
 #include "../Gaspi/Gaspi_FF_communicator.hpp"
-#include "/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/measure.hpp"
+#include "measure.hpp"
 
 extern "C"
 {

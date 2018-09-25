@@ -32,6 +32,7 @@ include_directories(${FMM_INCLUDE} ${FMM_HEADERS})
 # ---------------- NM tools
 set (NMTOOLS_LIB 		"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/libNMToolkit.so")
 set (NMTOOLS_INCLUDE 	"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT")
+include_directories(${NMTOOLS_INCLUDE})
 
 # ---------------- Boost
 set (BOOST_MPI_LIB 		"/Cci/Tmp/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_mpi.so")
