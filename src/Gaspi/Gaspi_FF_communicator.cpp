@@ -2,6 +2,9 @@
 using namespace std;
 
 static pthread_mutex_t mutex;
+static pthread_mutex_t mutex1;
+static pthread_mutex_t mutex2;
+static pthread_mutex_t mutex3;
 /* ---------------------------------------------- */
 /*               GASPI BULK VERSION               */
 /* ---------------------------------------------- */
@@ -10,11 +13,13 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 {
 
 	int indexToC = -1;
-	double t_begin, t_end, accumul;
-	accumul = 0;
+	double t_begin_comm, t_end_comm, t_begin, t_end, accumul_comm;
+	t_begin = MPI_Wtime();
+	accumul_comm = 0;
+		
 	int octree_offset = iOct * _wsize;
 	
-	t_begin = MPI_Wtime();
+
 	// PREPARATION _FF_sendBuffer
 	for (int dest=0; dest<_wsize; dest++)
 	{
@@ -92,11 +97,6 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 			}
 		}
 	}
-
-	t_end = MPI_Wtime();
-	add_time_sec("FF_write_to_buffer", t_end - t_begin);
-	add_time_sec("FF_buffering", t_end - t_begin);
-	t_begin = MPI_Wtime();
 			
 	// ENVOIS
 	gaspi_offset_t local_offset;
@@ -106,13 +106,10 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
     gaspi_queue_id_t queue=0;
     gaspi_size_t qty;
     
-	t_begin = MPI_Wtime();
 	flush_queues(_nbQueues);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_SEND_flush_queue", t_end - t_begin);
-	accumul += (t_end - t_begin);
+
 	
-	t_begin = MPI_Wtime();   
+	  
     for (int dest=0; dest<_wsize; dest++)
     {
 		if ( dest != _rank ) // if not current rank
@@ -123,6 +120,8 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 				remote_offset = _FF_sendRemoteOffsets[octree_offset + dest] * sizeof(complex);
 				qty = _nb_send[iOct][dest] * sizeof(complex);
 				
+				
+				t_begin_comm = MPI_Wtime(); 
 				SUCCESS_OR_DIE(
 					gaspi_write_notify( 
 						_FF_sendBuf_seg_id,					// local seg ID
@@ -137,9 +136,12 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 						GASPI_BLOCK							// Gaspi block
 					)
 				);
+				t_end_comm = MPI_Wtime();
+				accumul_comm = accumul_comm + (t_end_comm - t_begin_comm);
 			}
 			else // no data to send, notify anyway
 			{
+				t_begin_comm = MPI_Wtime();
 				SUCCESS_OR_DIE(
 					gaspi_notify(
 						_FF_recvBuf_seg_id,					// seg
@@ -150,14 +152,12 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 						GASPI_BLOCK
 					)
 				);
+				t_end_comm = MPI_Wtime();
+				accumul_comm = accumul_comm + (t_end_comm - t_begin_comm);
 			}
 		}
 	}
 	
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_SEND_write_notify", t_end - t_begin);
-	accumul += (t_end - t_begin);	
-	t_begin = MPI_Wtime();
 	
 	// RECEIVE
 	int recvCpt = 0;
@@ -168,9 +168,10 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 	
 	while (recvCpt < (_wsize-1))
 	{
+		t_begin_comm = MPI_Wtime();
 		while(1)
 		{
-			t_begin_loop = MPI_Wtime();
+			
 			SUCCESS_OR_DIE(
 				gaspi_notify_waitsome(
 					_FF_recvBuf_seg_id,
@@ -180,11 +181,6 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 					GASPI_BLOCK
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_RECV_notify_waitsome", t_end_loop - t_begin_loop);
-			accumul += (t_end_loop - t_begin_loop);
-
-			t_begin_loop = MPI_Wtime();
 			
 			SUCCESS_OR_DIE(
 				gaspi_notify_reset(
@@ -193,13 +189,13 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 					&new_notif_val
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("GASPI_RECV_notify_reset", t_end_loop - t_begin_loop);
-			accumul += (t_end_loop - t_begin_loop);			
 			
 			if (new_notif_val) 
 				break;
 		}
+		t_end_comm = MPI_Wtime();
+		accumul_comm = accumul_comm + (t_end_comm - t_begin_comm); 
+		
 		
 		// test the notification value and update counter
 		if (new_notif_val == SEND_DATA || new_notif_val == NO_DATA)
@@ -209,14 +205,13 @@ void Gaspi_FF_communicator::exchangeFFBulk(complex * bufsave, complex * ff, int 
 		if (new_notif_val == SEND_DATA)
 		{
 			sender = new_notif_id - notif_offset;
-			t_begin_loop = MPI_Wtime();			
 			updateFarFields(sender, ff, iOct);
-			t_end_loop = MPI_Wtime();
-			add_time_sec("FF_read_from_buffer", t_end_loop - t_begin_loop);
-			add_time_sec("FF_buffering", t_end_loop - t_begin_loop);
 		}
 	}
-	add_time_sec("GASPI_FF_sendrecv", accumul);
+	
+	t_end = MPI_Wtime();
+	add_time_sec("FF_sendrecv_comm", accumul_comm);
+	add_time_sec("FF_sendrecv_copy", t_end - t_begin - accumul_comm);
 }
 
 void Gaspi_FF_communicator::updateFarFields(int src, complex * ff, int iOct)
@@ -1129,12 +1124,13 @@ void Gaspi_FF_communicator::send_task_ff_level(int level, complex * ff, int iOct
 	{								
 		if (dest != _rank)
 		{
+			//nb of cells to be sent
 			int counter =  _count_send[iOct][dest][level];
 			
 			// if something to send to this dest
 			if (counter>0)
 			{
-				int lastBox =  _start_send[iOct][dest][level];	// the big one
+				int lastBox  = _start_send[iOct][dest][level];	// the big one
 				int firstBox = _stop_send[iOct][dest][level];	// the small one
 
 				// traverses the cells to send
@@ -1379,10 +1375,8 @@ void Gaspi_FF_communicator::recv_task_ff(int level, complex * ff, int iOct)
 
 void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int start, int stop)
 {
-	double t_begin, t_end, t_begin_s, t_end_s, accumul_s;
-	accumul_s = 0;
-	t_begin = MPI_Wtime();
-
+	pthread_mutex_lock(&mutex);
+	
 	int indexToC = -1;
 	int gaspiChunkSize = 4000; // in bytes
 	bool levelIsFinished = false;
@@ -1400,7 +1394,6 @@ void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int 
 		if (dest != _rank)
 		{
 			int counter =  _count_send[iOct][dest][level];
-			//printf("Src %d Dest %d Ioct %d level %d counter %d\n", _rank, dest, iOct, level, counter); fflush(stdout);
 
 			// if something to send to this dest ///  S IL EN RESTE ENCORE A ENVOYER
 			if (counter>0)
@@ -1412,16 +1405,15 @@ void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int 
 				for (int i= firstBox; i <= lastBox; i++)
 				{
 					int cellIDf = _send[iOct][i];
-					//printf("test cellIDf %d\n", cellIDf);
 					
 					// if the cell is in the task's nodes range
 					if (cellIDf >= start && cellIDf <= stop)
 					{
 						int cellID = cellIDf + indexToC;
+						int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];	// cell's corresponding ff in Fortran					
 						
 						// get indexes 
 						int q = _FF_sendLocalOffsets[iOct][dest] + _FF_sendLocalOffsets_counter[iOct][dest];						// in FF senbuffer
-						int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];	// cell's corresponding ff in Fortran
 						int idxInfos =_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendLocalOffsets_counter[iOct][dest];
 	
 						// write FF and Infos		
@@ -1446,10 +1438,7 @@ void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int 
 						if (termsSize >= gaspiChunkSize)	// if chunk is full, send !
 						{
 							// send
-							t_begin_s = MPI_Wtime();
 							send_chunk(iOct, dest, level, nbTerms, nbInfos, levelIsFinished);
-							t_end_s = MPI_Wtime();
-							accumul_s = accumul_s + (t_end_s - t_begin_s);
 							
 							// update keepers
 							_FF_sendLocalOffsets_keeper[iOct][dest] = _FF_sendLocalOffsets_counter[iOct][dest];
@@ -1458,10 +1447,7 @@ void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int 
 						else if (levelIsFinished) // if chunk is not full, but level is finished, send !
 						{
 							// send
-							t_begin_s = MPI_Wtime();
 							send_chunk(iOct, dest, level, nbTerms, nbInfos, levelIsFinished);
-							t_end_s = MPI_Wtime();
-							accumul_s = accumul_s + (t_end_s - t_begin_s);
 							
 							// update keepers
 							_FF_sendLocalOffsets_keeper[iOct][dest] = _FF_sendLocalOffsets_counter[iOct][dest];
@@ -1472,10 +1458,156 @@ void Gaspi_FF_communicator::send_task_ff(int level, complex * ff, int iOct, int 
 			}
 		}
 	}
-	t_end = MPI_Wtime();
-	add_time_sec("FF_write_to_buffer", t_end - t_begin - accumul_s);
-	add_time_sec("FF_buffering", t_end - t_begin - accumul_s);
-	add_time_sec("GASPI_FF_sendrecv", accumul_s);
+	pthread_mutex_unlock(&mutex);
+}
+
+void Gaspi_FF_communicator::send_task_ff_dbg(int level, complex * ff, int iOct, int start, int stop)
+{
+	
+	int indexToC = -1;
+	int gaspiChunkSize = 4000; // in bytes
+	bool levelIsFinished = false;
+	bool readyToSend = false;
+	int termsSize = 0;
+	int nbTerms = 0;
+	int nbInfos = 0;
+	int cptW = 0;
+	_numCounter = 0;
+	int threadID = omp_get_thread_num();
+	
+	// variables précalculables
+	int __nstnsp = _nst[iOct][level]*_nsp[iOct][level];
+	
+	// for each dest
+	for (int dest=0; dest<_wsize; dest++)
+	{
+		levelIsFinished = false;
+
+		if (dest != _rank)
+		{
+			// nb of cells to be sent
+			int counter =  _count_send[iOct][dest][level];
+
+			// if something to send to this dest 
+			if (counter>0)
+			{
+				int lastBox =  _start_send[iOct][dest][level];	// the big one
+				int firstBox = _stop_send[iOct][dest][level];	// the small one
+
+				// traverses the cells to send
+				for (int i= firstBox; i <= lastBox; i++)
+				{
+					readyToSend = false;
+					int cellIDf = _send[iOct][i];
+					
+					// if the cell is in the task's nodes range
+					if (cellIDf >= start && cellIDf <= stop)
+					{
+						
+						int cellID = cellIDf + indexToC;
+						int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*__nstnsp;	// cell's corresponding ff index in Fortran
+						
+						pthread_mutex_lock(&mutex1);
+							// get indexes 
+							int q = _FF_sendLocalOffsets[iOct][dest] + _FF_sendLocalOffsets_counter[iOct][dest];						// in FF sendbuffer
+							int idxInfos =_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendLocalOffsets_counter[iOct][dest];
+							
+							// update counters
+							_FF_sendLocalOffsets_counter[iOct][dest] += __nstnsp;
+							_Infos_sendLocalOffsets_counter[iOct][dest] += 1;
+							_accumul[dest] += 1;
+							nbTerms = _FF_sendLocalOffsets_counter[iOct][dest]-_FF_sendLocalOffsets_keeper[iOct][dest];
+							termsSize = nbTerms * sizeof(complex);
+							nbInfos = _Infos_sendLocalOffsets_counter[iOct][dest]-_Infos_sendLocalOffsets_keeper[iOct][dest];
+
+							cptW = _numCounter;
+							_threadSafeCounters[cptW]++;
+							
+							// test if ready to Send
+							if (_accumul[dest] == counter)
+							{	
+								levelIsFinished = true;
+								readyToSend = true;
+								_accumul[dest] = 0;
+							}
+							
+							if (termsSize >= gaspiChunkSize)
+							{
+								readyToSend = true;
+							}
+							
+							if (readyToSend) // update keepers and counters pointer
+							{
+								_FF_sendLocalOffsets_keeper[iOct][dest] = _FF_sendLocalOffsets_counter[iOct][dest];
+								_Infos_sendLocalOffsets_keeper[iOct][dest] = _Infos_sendLocalOffsets_counter[iOct][dest];
+								
+								// get new available counter for other threads
+								for (int i=0; i<_nbThreads; i++)
+								{
+									if (_availableCounters[i] == 0)
+									{
+										_numCounter = i;
+										_availableCounters[i] = -1;
+										break;
+									}	
+										
+								}								
+								//_numCounter = (_numCounter + 1) % _nbThreads;								
+							}
+						pthread_mutex_unlock(&mutex1);
+						
+							// write FF and Infos		
+							_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp];													
+							_Infos_sendbuffer[idxInfos] = i-firstBox;
+									
+									/*debug ("counters", itoa(_threadSafeCounters[0]) + " | " 
+									 + itoa(_threadSafeCounters[1]) + " | " 
+									 + itoa(_threadSafeCounters[2]) + " | " 
+									 + itoa(_threadSafeCounters[3]) + " --- "
+									 + itoa(threadID) + " has written " + itoa(cptW));*/
+									 						
+						// TO BE REPLACED BY ATOMIC ADDS/SUBS						
+						pthread_mutex_lock(&mutex1);
+							_threadSafeCounters[cptW]--;
+						pthread_mutex_unlock(&mutex1);
+						
+						
+						
+							if ( readyToSend )
+							{
+								// check that data is ready to be sent or wait !
+								while (_threadSafeCounters[cptW] != 0)
+								{
+									/*debug ("counters", itoa(_threadSafeCounters[0]) + " | " 
+									 + itoa(_threadSafeCounters[1]) + " | " 
+									 + itoa(_threadSafeCounters[2]) + " | " 
+									 + itoa(_threadSafeCounters[3]) + " --- "
+									 + itoa(threadID) + " having a nap ... on cptW = " + itoa(cptW) + " value = " + itoa(_threadSafeCounters[cptW]));*/
+									sleep(1);
+								}
+
+									/*debug ("counters", itoa(_threadSafeCounters[0]) + " | " 
+									 + itoa(_threadSafeCounters[1]) + " | " 
+									 + itoa(_threadSafeCounters[2]) + " | " 
+									 + itoa(_threadSafeCounters[3]) + " --- "
+									 + itoa(threadID) + " ok sending ... on cptW = " + itoa(cptW) + " value = " + itoa(_threadSafeCounters[cptW]));*/
+						
+						// send data and release counter
+						pthread_mutex_lock(&mutex3);
+								_availableCounters[cptW] = 0;	
+								send_chunk_dbg(iOct, dest, level, nbTerms, nbInfos, levelIsFinished);
+						pthread_mutex_unlock(&mutex3);
+							}
+					}
+				}
+			}
+		}
+	}
+/*debug ("counters", itoa(_threadSafeCounters[0]) + " | " 
++ itoa(_threadSafeCounters[1]) + " | " 
++ itoa(_threadSafeCounters[2]) + " | " 
++ itoa(_threadSafeCounters[3]) + " --- "
++ itoa(threadID) + " bye functionsend_task_ff_dbg");*/
 }
 
 void Gaspi_FF_communicator::send_chunk(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished)
@@ -1502,7 +1634,7 @@ void Gaspi_FF_communicator::send_chunk(int iOct, int dest, int level, int nbTerm
 	SUCCESS_OR_DIE(
 		gaspi_write( 
 			_FF_sendBuf_seg_id,					// local seg ID
-			local_offset_ff,						// local offset
+			local_offset_ff,					// local offset
 			dest,								// receiver rank
 			_FF_recvBuf_seg_id,					// remote seg ID
 			remote_offset_ff,						// remote offset
@@ -1585,6 +1717,113 @@ void Gaspi_FF_communicator::send_chunk(int iOct, int dest, int level, int nbTerm
 		}
 	}
 }
+
+void Gaspi_FF_communicator::send_chunk_dbg(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished)
+{
+
+	//printf("call send chunk dest %i\t level %i\t nbTerms %i\t nbInfos%i\t levelIsFinished %i\n",dest, level, nbTerms, nbInfos, levelIsFinished); 
+		
+	int indexToC = -1;
+	int octree_offset = iOct * _wsize;
+
+	flush_queues(_nbQueues);
+			
+	// local FF send offset
+	gaspi_offset_t local_dest_offset = _FF_sendLocalOffsets[iOct][dest] * sizeof(complex);
+	gaspi_offset_t accumul_offset = _FF_sendRemoteOffsets_counter[iOct][dest] * sizeof(complex);
+	gaspi_offset_t local_offset_ff = local_dest_offset + accumul_offset;
+	gaspi_queue_id_t queue=0;
+	
+	// remote offsets FF et Infos
+	gaspi_offset_t remote_sender_offset = _FF_sendRemoteOffsets[octree_offset + dest] * sizeof(complex);
+	gaspi_offset_t remote_offset_ff = remote_sender_offset + accumul_offset;
+	_FF_sendRemoteOffsets_counter[iOct][dest] += nbTerms;
+	
+	gaspi_offset_t remote_offset_infos = (_Infos_sendRemoteOffsets[octree_offset + dest] +_Infos_sendRemoteOffsets_counter[iOct][dest]) * sizeof(int) ;
+	gaspi_offset_t local_offset_infos = (_Infos_sendLocalOffsets[iOct][dest] + _Infos_sendRemoteOffsets_counter[iOct][dest]) * sizeof(int);
+	_Infos_sendRemoteOffsets_counter[iOct][dest] += nbInfos;
+	
+	gaspi_size_t qtyFF = nbTerms * sizeof(complex);
+	gaspi_size_t qtyInfos = nbInfos * sizeof(int);
+	
+	// envoi des DATA sans notification
+	SUCCESS_OR_DIE(
+		gaspi_write( 
+			_FF_sendBuf_seg_id,					// local seg ID
+			local_offset_ff,					// local offset
+			dest,								// receiver rank
+			_FF_recvBuf_seg_id,					// remote seg ID
+			remote_offset_ff,						// remote offset
+			qtyFF,								// size of data to write
+			queue,								// queue
+			GASPI_BLOCK							// Gaspi block
+		)
+	);
+	
+	SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
+		
+	// envoi des INFOS sans notification
+	SUCCESS_OR_DIE(
+		gaspi_write( 
+			_Infos_sendbuf_seg_id,				// local seg ID
+			local_offset_infos,						// local offset
+			dest,								// receiver rank
+			_Infos_recvbuf_seg_id,				// remote seg ID
+			remote_offset_infos,						// remote offset
+			qtyInfos,								// size of data to write
+			queue,								// queue
+			GASPI_BLOCK							// Gaspi block
+		)
+	);
+	
+	SUCCESS_OR_DIE (gaspi_wait (queue, GASPI_BLOCK));
+	
+	if (levelIsFinished)
+	{
+		// ENVOI DE LA NOTIFICATION
+		gaspi_notification_id_t notifyID = (_rank * 65536/_wsize) + level;
+		gaspi_notification_t notifyValue = level;
+	
+		SUCCESS_OR_DIE(
+			gaspi_notify( 
+				_Infos_recvbuf_seg_id,				// remote seg id
+				dest,								// receiver rank
+				notifyID,
+				notifyValue,
+				queue,								// queue
+				GASPI_BLOCK							// Gaspi block
+			)
+		);
+		
+		// RAZ DES COMPTEURS
+		if(_incLevcom)
+		{
+			if (level == _levcom[iOct] + indexToC ) 
+			{
+				_FF_sendLocalOffsets_counter[iOct][dest] = 0;
+				_FF_sendRemoteOffsets_counter[iOct][dest] = 0;
+				_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
+				_Infos_sendRemoteOffsets_counter[iOct][dest] = 0;
+				_FF_sendLocalOffsets_keeper[iOct][dest] = 0;
+				_Infos_sendLocalOffsets_keeper[iOct][dest] = 0;
+			}
+		}
+		else // cas allreduce sur levcom
+		{
+			if (level == _levcom[iOct] + 1 + indexToC)
+			{
+				_FF_sendLocalOffsets_counter[iOct][dest] = 0;
+				_FF_sendRemoteOffsets_counter[iOct][dest] = 0;
+				_Infos_sendLocalOffsets_counter[iOct][dest] = 0;
+				_Infos_sendRemoteOffsets_counter[iOct][dest] = 0;
+				_FF_sendLocalOffsets_keeper[iOct][dest] = 0;
+				_Infos_sendLocalOffsets_keeper[iOct][dest] = 0;
+			}
+		}
+	}
+}
+
+
 
 void Gaspi_FF_communicator::send_task_ff_reorg(int level, complex * ff, int iOct, int start, int stop)
 {
@@ -2017,6 +2256,9 @@ void Gaspi_FF_communicator::updateFarFieldChunksFromInfos(int src, int level, co
 		index = _Infos_recvbuffer[i];
 		int cellIDf = _recv[iOct][firstBox+index];
 		int cellID = cellIDf + indexToC;
+		//printf ("received cellID : %i\n", cellID); fflush(stdout);
+		debug("received_cellIDs", "cellID : " + itoa(cellID) + " i/nbNodes : " + itoa(i) + "/" + itoa(nbNodes));
+
 
 		// ranger la boîte
 		int ff_index = (i-info_offset) * __nstnsp;
@@ -2033,62 +2275,22 @@ void Gaspi_FF_communicator::updateFarFieldChunksFromInfos(int src, int level, co
 
 void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 {
+	double t_begin, t_end, t_begin_comm, t_end_comm, accumul_comm;
+	
+	t_begin = MPI_Wtime();
+	accumul_comm = 0;
+	
 	int indexToC = -1;
-	double t_begin, t_end, accumul;
-	accumul = 0;
 	int octree_offset = iOct * _wsize;
 	
 	// flush queue
-	t_begin = MPI_Wtime();
 	flush_queues(_nbQueues);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_SEND_wait_queue", t_end - t_begin);
-	accumul = accumul + (t_end - t_begin);	
 	
 	// prepare _SendBuffer
 	for (int dest=0; dest<_wsize; dest++)
 	{
 		if (dest != _rank)
 		{
-			t_begin = MPI_Wtime();
-			// box range to send, FROM SEND ARRAY
-			/*int firstBoxToSendIDX= _fsend[iOct][dest] + indexToC;
-			int lastBoxToSendIDX = _fsend[iOct][dest+1]-1 + indexToC;
-			
-			// cell range from the current level
-			int beginlevel = _endlev[iOct][level-1]+1 + indexToC; 
-			int endlevel   = _endlev[iOct][level] + indexToC;
-			
-			//int count = 0;
-			int count = _count_send[iOct][dest][level];
-			//int q = _LocalSendOffsets[octree_offset + dest] - 1 + _offsetKeeper[iOct][dest];
-			int q = _FF_sendLocalOffsets[iOct][dest] - 1 + _FF_sendLocalOffsets_counter[iOct][dest];
-
-			
-			// remplissage du buffer d'envoi, par ordre décroissant
-			//#pragma omp parallel for private(q)
-			for (int k = lastBoxToSendIDX; k>=firstBoxToSendIDX; k--)
-			{
-				int cellID = _send[iOct][k] + indexToC;
-				
-				if ( (cellID >= beginlevel) && (cellID <= endlevel))	// todo : stop earlier, cells are ranged in ascending order
-				{
-					// calcule le bon index pour p (= offset, dans le tableau ff)
-					int p=_fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
-					p = p + indexToC;
-					
-					// ecrit dans SendBuffer les nst(niveau) x nsp(niveau) complexes, de cellID, depuis FF
-					for (int st=0; st<_nst[iOct][level]; st++)
-					{
-						for (int sp=0; sp<_nsp[iOct][level];  sp++)
-						{
-							p++;
-							q++;
-							_FF_sendBuffer[q]=ff[p];
-						}
-					}
-				}
-			}*/
 
 			int q = _FF_sendLocalOffsets[iOct][dest] - 1 + _FF_sendLocalOffsets_counter[iOct][dest];
 			int q0 = q + 1; 
@@ -2109,11 +2311,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 					_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp];
 				}
 			}
-			
-			t_end = MPI_Wtime();
-			add_time_sec("FF_write_to_buffer", t_end - t_begin);
-			t_begin = MPI_Wtime();
-			
+						
 			// if something to send
 			if (count > 0)
 			{
@@ -2137,6 +2335,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 				gaspi_notification_id_t notifyID = (iOct * _nivterm[iOct] * _wsize) + (level * _wsize) + _rank;
 				gaspi_size_t qty= count * _nst[iOct][level] * _nsp[iOct][level] * sizeof(complex);
 				
+				t_begin_comm = MPI_Wtime();
 				SUCCESS_OR_DIE(
 					gaspi_write_notify( 
 						_FF_sendBuf_seg_id,			// local seg ID
@@ -2151,11 +2350,9 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 						GASPI_BLOCK							// Gaspi block
 					)
 				);
+				t_end_comm = MPI_Wtime();
+				accumul_comm = accumul_comm + (t_end_comm - t_begin_comm);
 			}
-			
-			t_end = MPI_Wtime();
-			add_time_sec("GASPI_SEND_write_notify", t_end - t_begin);
-			accumul = accumul + (t_end - t_begin);
 		}
 
 		// cas include levcom
@@ -2176,12 +2373,18 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 				/*_offsetKeeper[iOct][dest]*/ _FF_sendLocalOffsets_counter[iOct][dest] = 0;
 		}	
 	}
-	add_time_sec("GASPI_FF_sendrecv", accumul);
+	t_end = MPI_Wtime();
+	add_time_sec("FF_sendrecv_comm", accumul_comm);
+	add_time_sec("FF_sendrecv_copy", t_end - t_begin - accumul_comm);
 }
 
 void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 {
-
+	double t_begin, t_end, t_begin_comm, t_end_comm, accumul_comm;
+	
+	t_begin = MPI_Wtime();
+	accumul_comm = 0;
+	
 	// wait to receive all infos
 	int nbRecvExpected = 0;
 	for (int i=0; i<_wsize; i++)
@@ -2199,12 +2402,11 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 	gaspi_notification_t new_notif_val;
 	int recvCpt = 0;
 	int sender;
-	double t_begin, t_end;
 	
 	
 	while (recvCpt < nbRecvExpected)
 	{
-		t_begin = MPI_Wtime();
+		t_begin_comm = MPI_Wtime();
 		//methode 1 - avec GASPI_BLOCK
 		// ne surveille que les notifs du level
 		while(1)
@@ -2231,64 +2433,18 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 				break;
 		}
 		
-		t_end = MPI_Wtime();
-		add_time_sec("GASPI_RECV_notify_waitsome", t_end - t_begin);
-		add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
-		
+		t_end_comm = MPI_Wtime();
+		accumul_comm = accumul_comm + (t_end_comm - t_begin_comm);		
 
-		// test the notification value and compare with array (I know, useless)
-		t_begin = MPI_Wtime();
 		if (new_notif_val)
 		{
 			recvCpt++;
 			sender = new_notif_id - notif_offset;
 			updateFarFields(sender, level, ff, iOct);
 		}
-		t_end = MPI_Wtime();
-		add_time_sec("FF_read_from_buffer", t_end - t_begin);
 	}
-}
-/*
-void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, int iOct)
-{		
-	int indexToC = -1;
-	int k = level + 1;
-	int octree_offset = iOct * _wsize;
-
-	// calcul de l'offset	
-	int levelOffset = 0;
-	for (int i=_nivterm[iOct] + indexToC; i>level; i--)
-	{
-		levelOffset += _nst[iOct][i] * _nsp[iOct][i] * _Expect[iOct][src][i];
-	}
-	int q = _FF_recvOffsets[octree_offset + src]-1; // se mettre 1 case avant l'index à lire
-	q += levelOffset; 	
-
-	// box range to recv, FROM RECV ARRAY
-	int firstBoxToRecvIdx= _frecv[iOct][src] + indexToC;
-	int lastBoxToRecvIdx = _frecv[iOct][src+1]-1 + indexToC;
-
-	//#pragma omp parallel for private (q) REACTIVER, car TEMPORAIREMENT DESACTIVE
-    for (int j=lastBoxToRecvIdx; j>=firstBoxToRecvIdx; j--)
-	{
-		int cellID = _recv[iOct][j] + indexToC;
 	
-		// test if box belongs to level 
-		if ( (cellID > _endlev[iOct][level-1]+indexToC) && (cellID <= _endlev[iOct][level]+indexToC) )
-		{
-			// update far fields
-			int p = _fniv[iOct][level+1]+(_endlev[iOct][level]+indexToC-cellID)*_nst[iOct][level]*_nsp[iOct][level];
-			p = p + indexToC;
-			
-			for (int st=0; st<_nst[iOct][level]; st++)
-			{
-				for (int sp=0; sp<_nsp[iOct][level]; sp++)
-				{
-					p++;
-					q++;
-					ff[p] = ff[p] + _FF_recvBuffer[q];
-				}
-			}			
-		}
-	}
-}*/
+	t_end = MPI_Wtime();
+	add_time_sec("FF_sendrecv_comm", accumul_comm);
+	add_time_sec("FF_sendrecv_copy", t_end - t_begin - accumul_comm);
+}

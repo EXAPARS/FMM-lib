@@ -107,6 +107,12 @@ public:
 	
 	int ** _Infos_sendLocalOffsets_counter = nullptr; 				// Counter to add to _Infos_sendLocalOffsets
 	int ** _Infos_sendRemoteOffsets_counter = nullptr;				// Counter to add to _Infos_sendRemoteOffsets
+	
+	int * _threadSafeCounters = nullptr;
+	int * _availableCounters = nullptr;
+	int _numCounter = 0;
+	
+	int _nbThreads = 0;
 
 /************************************
  * KEEPERS  *
@@ -194,6 +200,7 @@ public:
 	void recv_task_ff_level(int level, complex * ff, int iOct);
 	void recv_task_ff(int level, complex * ff, int iOct);
 	void send_task_ff(int level, complex * ff, int iOct, int start, int stop);
+	void send_task_ff_dbg(int level, complex * ff, int iOct, int start, int stop);
 	void send_task_ff_reorg(int level, complex * ff, int iOct, int start, int stop);
 
 
@@ -221,6 +228,7 @@ public:
 	void fmm_raz_gaspi_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);
 	void send_chunk(int iOct, int dest, int level);
 	void send_chunk(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);
+	void send_chunk_dbg(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);	
 	void send_chunk_reorg(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished,
 		gaspi_offset_t local_offset_ff, gaspi_offset_t remote_offset_ff, gaspi_size_t qty_ff,
 		gaspi_offset_t local_offset_infos, gaspi_offset_t remote_offset_infos, gaspi_size_t qty_infos);

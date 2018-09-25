@@ -32,14 +32,9 @@ static pthread_mutex_t mutex;
 // start stop switch 
 void fmm_gaspi_init_()
 {
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD); 
 	SUCCESS_OR_DIE (gaspi_proc_init (GASPI_BLOCK));
 	SUCCESS_OR_DIE (gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_proc_init", t_end - t_begin);
-	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
 	pthread_mutex_init(&mutex, NULL);
 }
 
@@ -56,23 +51,13 @@ void fmm_gaspi_finalize_()
 void fmm_switch_to_mpi_()
 {
 	// Rend la main au MPI
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
-    SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK));
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
-	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);	 
+    SUCCESS_OR_DIE(gaspi_barrier(GASPI_GROUP_ALL, GASPI_BLOCK)); 
 }
 
 void fmm_switch_to_gaspi_()
 {
 	// Passe la main au Gaspi
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
     MPI_Barrier(MPI_COMM_WORLD);
-	t_end = MPI_Wtime();
-	add_time_sec("GASPI_switch_interop", t_end - t_begin);
-	add_time_sec("GASPI_FF_sendrecv", t_end - t_begin);
 }
 
 // Init
@@ -111,14 +96,8 @@ void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom)
 
 void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
 {
-	//cout << "toto" << endl;
-	//fflush(stdout);	
+
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
-	/*if (rank ==10)
-	{	
-		printf("[%d][ENTER] gaspi_send_ff_ , level : %d, domain : %d\n", rank,((int)(*niv)-1), ((int)(*idom)-1));	
-		fflush(stdout);
-	}*/
 	if(gCommFF)
 	{
 		gCommFF->send_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
@@ -128,13 +107,6 @@ void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
 		cerr << "[wrapper gaspi_send_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
-	/*if (rank ==10)
-	{
-		printf("[%d][EXIT] gaspi_send_ff_ , level : %d, domain : %d\n", rank, (int)(*niv)-1, (int)(*idom)-1);	
-		fflush(stdout);
-	}*/
-	//printf("[%d] sent level : %d, octree : %d\n", rank, (int)(*niv)-1, (int)(*idom)-1);	
-	//fflush(stdout);
 }
 
 /*
@@ -181,32 +153,28 @@ void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 
 void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom)
 {
-	pthread_mutex_lock(&mutex);
-
+	// allocate thread safe counters
+	pthread_mutex_lock(&mutex);	
+	if (!gCommFF->_threadSafeCounters)
+	{
+		gCommFF->_nbThreads = omp_get_num_threads();
+		gCommFF->_threadSafeCounters = new int[gCommFF->_nbThreads]();
+		//cout << "Thread safe counters allocated size : " << gCommFF->_nbThreads << endl;
+		gCommFF->_availableCounters = new int[gCommFF->_nbThreads]();
+	}
+	pthread_mutex_unlock(&mutex);
+	
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		
-
-	//debug("in_out", convert(rank) + "enter gaspi_task_send_ff_");
-	//printf("[%d][ENTER] gaspi_task_chunk_send_ff_ , level : %d, domain : %d, start : %d - stop %d\n", rank, ((int)(*niv)-1), ((int)(*idom)-1), (int)(*start), (int)(*stop));	
-	//fflush(stdout);
 	
 	if(gCommFF)
 	{
-		gCommFF->send_task_ff((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
-		//gCommFF->send_task_ff_reorg((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
-
+		gCommFF->send_task_ff_dbg((int)(*niv)-1, ff, (int)(*idom)-1, (int)(*start), (int)(*stop));		
 	}
 	else
 	{
 		cerr << "[wrapper gaspi_send_ff] Gaspi M2L Communicator is not initialized !" << endl;
 		exit(-1);
 	}
-	//printf("[%d][EXIT] gaspi_task_chunk_send_ff_ , level : %d, domain : %d, start : %d - stop %d\n", rank, ((int)(*niv)-1), ((int)(*idom)-1), (int)(*start), (int)(*stop));	
-	//fflush(stdout);	
-	//dumpMSG("send_task_ff");
-	//debug("in_out", convert(rank) + "exit gaspi_task_send_ff_");
-	//fflush(stdout);
-	pthread_mutex_unlock(&mutex);
 }
 
 void gaspi_task_chunk_recv_ff_(i64 * niv, complex * ff, i64 * idom)
