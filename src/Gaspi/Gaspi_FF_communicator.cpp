@@ -1,4 +1,5 @@
 #include "Gaspi_FF_communicator.hpp"
+#include "../Tools/fmm_tools.hpp"
 using namespace std;
 
 static pthread_mutex_t mutex;
@@ -2162,7 +2163,7 @@ void Gaspi_FF_communicator::updateFarFields(int src, int level, complex * ff, in
 		{
 			q = q0 + (lastBox-j)*__nstnsp;		
 			int cellID = __recv[j] + indexToC; 
-			int p0 = __fnivnextlev + ((__endlev-cellID)*__nstnsp);					
+			int p0 = __fnivnextlev + ((__endlev-cellID)*__nstnsp);
 			ff[p0:__nstnsp] = ff[p0:__nstnsp] + _FF_recvBuffer[q:__nstnsp];
 		}
 	}
@@ -2311,7 +2312,7 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 					_FF_sendBuffer[q:__nstnsp] = ff[p:__nstnsp];
 				}
 			}
-						
+			
 			// if something to send
 			if (count > 0)
 			{
@@ -2380,6 +2381,8 @@ void Gaspi_FF_communicator::send_ff_level(int level, complex * ff, int iOct)
 
 void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 {
+	//int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+		
 	double t_begin, t_end, t_begin_comm, t_end_comm, accumul_comm;
 	
 	t_begin = MPI_Wtime();
@@ -2394,6 +2397,9 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 			nbRecvExpected++;
 		}
 	}
+	
+	// create timestamps array
+	//vector<uint64_t> timestamps(nbRecvExpected,0);
 
 	/*int rankMultiple = level;
 	gaspi_notification_id_t notif_offset = _wsize * rankMultiple;*/
@@ -2436,6 +2442,9 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 		t_end_comm = MPI_Wtime();
 		accumul_comm = accumul_comm + (t_end_comm - t_begin_comm);		
 
+		// update timestamps array
+		//timestamps[recvCpt] = rdtsc();
+		
 		if (new_notif_val)
 		{
 			recvCpt++;
@@ -2445,6 +2454,12 @@ void Gaspi_FF_communicator::recv_ff_level(int level, complex * ff, int iOct)
 	}
 	
 	t_end = MPI_Wtime();
+	add_time_sec("FF_recv_wait", accumul_comm);
 	add_time_sec("FF_sendrecv_comm", accumul_comm);
 	add_time_sec("FF_sendrecv_copy", t_end - t_begin - accumul_comm);
+	
+	// dump timestamps array
+	/*int wsize; MPI_Comm_size(MPI_COMM_WORLD,&wsize);
+	string file = "Gaspi_async/timestamps/" + to_string((unsigned long long)wsize) +"/recv_timestamps";
+	dumpBuffer(rank, timestamps.data(), nbRecvExpected, file,"level " + to_string((unsigned long long)level));*/
 }

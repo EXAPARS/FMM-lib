@@ -78,7 +78,7 @@ void displayTab(string info, T * tab, int size, ostream & out=cout)
 template<typename T>
 void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 {
-	string file = "output/" + fileName + "_" + to_string((unsigned long long)rank) + ".txt";
+	string file = fileName + "_" + to_string((unsigned long long)rank) + ".txt";
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	
@@ -86,10 +86,10 @@ void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 	{
 		cerr << "[dumpBuffer] Buffer is not allocated."; exit(-1);
 	}
-	//out << message << endl;
+	out << message << endl;
 	for (int i=0; i<size; i++)
 		out << buffer[i] << "\n";
-	out << endl;
+	out <<  endl;
 	
 	out.close();
 }
@@ -105,5 +105,8 @@ void loadAndDiffData(const string & file1, const string & file2);
 
 string itoa(int a);
 
+
+/** RDTSC **/
+uint64_t rdtsc(void);
 
 #endif

@@ -64,6 +64,9 @@ extern "C"
 		i64 * nst, i64 * nsp, i64 * codech);
 	void fmm_finalize_dump_vector_();
 	void raz_buffers_(i64 * max_send_terms, i64 * max_recv_terms, i64 * max_send_nodes, i64 * max_recv_nodes);
+	
+	// random MPI à sortir dans lib à part
+	void randomizempi_(i64 * wsize, i64 * procIDs);
 }
 
 #endif

@@ -19,6 +19,12 @@
 #include <string>
 #include <iostream>
 
+#include <algorithm>
+#include <list>
+#include <numeric>
+#include <random>
+#include <vector>
+#include <iterator>
 
 #include "FMM_Gaspi_wrapper.hpp"
 
@@ -316,5 +322,33 @@ void fmm_dump_(complex * tab, i64* size)
 {
 	int mpi_rank; MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 	dumpBuffer(mpi_rank, tab, int(*size), "fortran", "ff");
+}
+
+void randomizempi_(i64 * wsize, i64 * procIDs)
+{
+
+	vector<i64> v(*wsize);	
+	for (int i=0; i< *wsize; i++)
+		v[i] = i+1;
+	
+	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
+	
+	// master
+	if (rank == 0)
+	{
+		random_shuffle (v.begin(), v.end());
+	}
+	// broadcast to all ranks
+	MPI_Bcast(v.data(), *wsize, MPI_LONG, 0, MPI_COMM_WORLD);
+	
+	// quick and dirty copy
+	for (int i=0; i< *wsize; i++)
+		procIDs[i] = v[i];
+	
+	// output check
+	std::cout << "OUTPUT myvector contains:";
+	for (int i=0; i< *wsize; i++)
+		cout << procIDs[i] << " ";
+	cout << endl;
 }
 
