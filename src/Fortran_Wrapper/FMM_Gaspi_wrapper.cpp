@@ -106,7 +106,9 @@ void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom)
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);	
 	if(gCommFF)
 	{
-		gCommFF->send_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+		//cout << "send ff call" << endl;
+		//gCommFF->send_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+		gCommFF->send_ff_level_multithreaded((int)(*niv)-1, ff, (int)(*idom)-1);
 	}
 	else
 	{
@@ -219,7 +221,8 @@ void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom)
 	if (gCommFF)
 	{
 		//cout << "into recv level" << (int)(*niv)-1 << "octree : " << (int)(*idom)-1 << endl;
-		gCommFF->recv_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+		//gCommFF->recv_ff_level((int)(*niv)-1, ff, (int)(*idom)-1);
+		gCommFF->recv_ff_level_multithreaded((int)(*niv)-1, ff, (int)(*idom)-1);
 	}
 	else
 	{

@@ -196,6 +196,9 @@ public:
 	// gaspi overlap
 	void send_ff_level(int level, complex * ff, int iOct);
 	void recv_ff_level(int level, complex * ff, int iOct);
+	void send_ff_level_multithreaded(int level, complex * ff, int iOct);
+	void recv_ff_level_multithreaded(int level, complex * ff, int iOct);
+
 	void send_task_ff_level(int level, complex * ff, int iOct, int start, int stop);
 	void recv_task_ff_level(int level, complex * ff, int iOct);
 	void recv_task_ff(int level, complex * ff, int iOct);
