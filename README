@@ -3,9 +3,35 @@
              (  @ @  )
     _______ oOOo-(_)-oOOo___________
    |                                |
-   |             FMM                |
+   |             FMM-lib            |
    |                                |   
-   |        Comment démarrer ?      |
+   |  Initial particules            |
+   |     load balancer              |
+   |                                |
+   |                                |
+   |______________Oooo._____________|
+       .oooO     (   )
+        (   )     ) /
+         \ (     (_/
+          \_)
+
+The current released version of the FMM-lib features 
+various static load-balancing strategies for the initial 
+partitioning and exchange of the particules in distributed 
+memory. In addition, we propose a benchmark and a dataset 
+to test the library and demonstrate its usage. Furthermore, 
+we propose a vizualisation tool to plot the effect of the 
+partionning on the input data. 
+
+
+          \\\||||||////
+            \\  ~ ~  //
+             (  @ @  )
+    _______ oOOo-(_)-oOOo___________
+   |                                |
+   |             FMM-lib            |
+   |                                |   
+   |        Where to start ?        |
    |                                |
    |                                |
    |______________Oooo._____________|
@@ -15,28 +41,30 @@
           \_)
 
 
-Dépendances :
+Dépendencies :
 ===============
-- Tests unitaires
+- Unitary tests:
 CppUnit
 http://freedesktop.org/wiki/Software/cppunit/
 
-- Visu OpenGL
+- OpenGL visualization tool:
 glut : apt-get install freeglut3-dev
 glew : apt-get install libglew-dev
 glm : apt-get install libglm-dev 
 
-- Documentation Doxygen
+- Doxygen Documentation
 Graphviz : apt-get install graphViz
 
 Compilation :
 ===============
-1) Generation du Makefile avec cmake
-- dossier build
+
+1) Makefile generation with cmake
+
+-  ./build direcory
 cmake CMakeLists.txt
-Si cmake ne trouve pas mpi.h
-	- decommenter les lignes 73, 74 et 75
-	- indiquer le chemin
+Trouble shooting (work around for now...): If cmake cannot locate mpi.h
+	- Uncomment line 73, 74 and 75 of CMakeLists.txt
+	- Add your own path
 
 2) Compilation
 FMM :
@@ -45,9 +73,9 @@ FMM :
 OpenGL :
 	- make viz
 
-Generateur de particules :
+Particules data gnenrator:
 	- make gen
 
-Tests Unitaires :
+Unitary Tests:
 	- test_seq
 	- test_parll

@@ -32,6 +32,7 @@
 #include "vec3D.hpp"
 
 #include "../Tools/fmm_tools.hpp"
+
 // TEMPORARILY USE a STL STACK
 #include <stack>
 
