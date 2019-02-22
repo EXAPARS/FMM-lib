@@ -44,6 +44,8 @@ extern "C"
 	void fmm_handle_ff_gaspi_bulk_(complex * ff, complex * bufsave, i64 * idom);
 	void gaspi_send_ff_(i64 * niv, complex * ff, i64 * idom);
 	void gaspi_recv_ff_(i64 * niv, complex * ff, i64 * idom);
+	void gaspi_send_ff_multi_(i64 * niv, complex * ff, i64 * idom);
+	void gaspi_recv_ff_multi_(i64 * niv, complex * ff, i64 * idom);	
 	void gaspi_task_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
 	void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom);
 	void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
@@ -63,7 +65,6 @@ extern "C"
 		i64 * nivterm, i64 * frecv, i64 * recv, i64 * levcom, i64 * endlev, i64 * fniv, i64 * fsend, i64 * send,
 		i64 * nst, i64 * nsp, i64 * codech);
 	void fmm_finalize_dump_vector_();
-	void raz_buffers_(i64 * max_send_terms, i64 * max_recv_terms, i64 * max_send_nodes, i64 * max_recv_nodes);
 	
 	// random MPI à sortir dans lib à part
 	void randomizempi_(i64 * wsize, i64 * procIDs);

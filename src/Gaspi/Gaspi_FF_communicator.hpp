@@ -189,6 +189,7 @@ public:
 	void updateFarFields(int src, complex * ff, int iOct);
 	void updateFarFields(int src, int level, complex * ff);
 	void updateFarFields(int src, int level, complex * ff, int iOct);
+	void updateFarFields_multi(int src, int level, complex * ff, int iOct);
 	void updateFarFieldsFromInfos(int src, int level, complex * ff, int counter, int iOct);
 	void updateFarFieldChunksFromInfos(int src, int level, complex * ff, int counter, int iOct);
 
@@ -198,6 +199,7 @@ public:
 	void recv_ff_level(int level, complex * ff, int iOct);
 	void send_ff_level_multithreaded(int level, complex * ff, int iOct);
 	void recv_ff_level_multithreaded(int level, complex * ff, int iOct);
+	void recv_ff_level_multithreaded_2(int level, complex * ff, int iOct);
 
 	void send_task_ff_level(int level, complex * ff, int iOct, int start, int stop);
 	void recv_task_ff_level(int level, complex * ff, int iOct);

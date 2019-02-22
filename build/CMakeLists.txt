@@ -19,8 +19,10 @@ cmake_minimum_required (VERSION 2.8.10)
 PROJECT (FMM)
 set (CMAKE_CXX_COMPILER icpc)
 
+# CHECK BEFORE COMPILE
+set (LIBRARY_OUTPUT_PATH ../lib/sandy)
+
 # variables
-set (LIBRARY_OUTPUT_PATH ../lib/${CMAKE_BUILD_TYPE})
 set (FMM_DIR "/da/soc/groupes/csc/projet.h4h/d101219/FMM/FMM-lib")
 set (FMM_INCLUDE "${FMM_DIR}/include")
 set (FMM_HEADERS "${FMM_DIR}/src")
@@ -88,3 +90,5 @@ if(MPI_LINK_FLAGS)
   set_target_properties(fmm
   PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
+
+set (CMAKE_VERBOSE_MAKEFILE 1)
