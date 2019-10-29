@@ -33,7 +33,6 @@ public:
 		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
 		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const 
 	{ 
-		cout << "--> Approx Histogram load balancing" << endl;
 
 		/**
 		 * Compute the octree characteristics
@@ -47,8 +46,6 @@ public:
 		int nbGridAxis = (1 << height) - 1;
 		int firstAxisIdx = nbGridAxis/2*(-1);
 		
-		cout << "nbGridAxis : " << nbGridAxis << endl;
-
 		// Allocate and init the grid of octree separators, in 3D, X, Y and Z
 		double ** grid = new double* [3]();
 		for(int i=0; i<3; i++)
@@ -62,7 +59,6 @@ public:
 				index++;
 			}
 		}
-
 		
 		/**
 		* Traverse the tree and recursively the leaves until reaching the targeted depth.
@@ -124,12 +120,26 @@ public:
 			else
 				bfsList.pop_front();
 		}
-		delete [] flatIdxes;
 
+		/** CAS 1 : utilisation dans Spectre **/
+		/**
+		delete [] flatIdxes;
 		// C to F +1 pour les ranks MPI au niveau des feuilles
 		for (int i=0; i<nbLeaves; i++)
 			nodeOwners[i]+= 1;
-
+		**/
+	
+	
+		/** CAS 2 : utilisation avec FMM-Viz
+		*
+		**/
+		
+		// MPI Exchange
+		octree->getContent().exchangeMPI(flatIdxes);
+		
+		// Dealloc
+		delete [] flatIdxes;
+	
 	}
 };
 

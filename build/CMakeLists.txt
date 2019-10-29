@@ -1,4 +1,4 @@
-#  Copyright 2015 - UVSQ
+#  Copyright 2019 - UVSQ
 #  Authors list: Nathalie Möller, Eric Petit
 #
 #  This file is part of the FMM-lib.
@@ -17,48 +17,27 @@
 cmake_minimum_required (VERSION 2.8.10)
 
 PROJECT (FMM)
-set (CMAKE_CXX_COMPILER icpc)
+set (CMAKE_CXX_COMPILER g++)
 
+# variables
+set (LIBRARY_OUTPUT_PATH ../lib/${CMAKE_BUILD_TYPE})
 
-set (LIBRARY_OUTPUT_PATH ../lib)
-
-set (FMM_DIR "/da/soc/groupes/csc/projet.h4h/d101219/FMM/FMM-lib")
+set (FMM_DIR "/path/to/lib/FMM-lib")
 set (FMM_INCLUDE "${FMM_DIR}/include")
 set (FMM_HEADERS "${FMM_DIR}/src")
 
-# sources
+# ---------------- sources
 file (GLOB_RECURSE FMM_src_list ../src/*)
 include_directories(${FMM_INCLUDE} ${FMM_HEADERS})
 
-# NM tools
-set (NMTOOLS_LIB 		"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT/libNMToolkit.so")
-set (NMTOOLS_INCLUDE 	"/da/soc/groupes/csc/projet.h4h/d101219/NM_TOOLKIT")
-
-# Boost
-set (BOOST_MPI_LIB 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_mpi.so")
-set (BOOST_SERIALIZATION_LIB "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/lib/libboost_serialization.so")
-
-set (BOOST_LIB 
-		${BOOST_MPI_LIB} 
-		${BOOST_SERIALIZATION_LIB}
-	)
-	
-
-set (BOOST_INCLUDE 		"/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/boost/include")
-
-#GASPI
-set (GASPI_DIR "/tmp_cci/EOD/CODE_OPTIM/d101219/perf_tools/GPI-2")
-
-
+#2 ---------------- GASPI
+set (GASPI_VERSION "gpi")
+set (GASPI_DIR "/path/to/gaspi/${GASPI_VERSION}")
 set (GASPI_INCLUDE "${GASPI_DIR}/include")
-set (GASPI_LIB "${GASPI_DIR}/lib64/libGPI2.a")
-set (GASPI_LIB_DBG "${GASPI_DIR}/lib64/libGPI2-dbg.a")
-set (GASPI_LIB_STATS "${GASPI_DIR}/lib64/libGPI2-stats.a")
 
-
-# set compile FLAGS
-set (CMAKE_CXX_FLAGS "-fPIC -O3 -mavx  -std=c++11 -Wall -fopenmp -lcilkrts")
-set (MPI_COMPILE_FLAGS "-fPIC -O3 -mavx -std=c++11 -Wall -fopenmp -lcilkrts")
+# ---------------- set compile FLAGS
+set (CMAKE_CXX_FLAGS "-fPIC -O3 -march=native  -std=c++11 -Wall -fopenmp")
+set (MPI_COMPILE_FLAGS "-fPIC -O3 -march=native -std=c++11 -Wall -fopenmp")
 
 # ---------------- set output library
 add_library (
@@ -67,23 +46,42 @@ add_library (
     ${FMM_src_list}
 )
 
-# ----------------  verbosity
-set (CMAKE_VERBOSE_MAKEFILE 1)
-
 # ----------------  MPI
+#find_package (MPI REQUIRED) 
 
-find_package (MPI)
+set (MPI_CXX_COMPILER /usr/bin/mpicxx)
+set (MPI_CXX_HEADER_DIR /usr/lib/x86_64-linux-gnu/openmpi/include/)
+set (MPI_INCLUDE_PATH /usr/lib/x86_64-linux-gnu/openmpi/include)
+
 include_directories(${MPI_INCLUDE_PATH})
 
 # ----------------  GASPI
 include_directories (${GASPI_INCLUDE})
 
+# ---------------- en fx de la machine
+set (ARCH "$ENV(HOSTNAME)")
+
+EXECUTE_PROCESS( COMMAND hostname
+OUTPUT_VARIABLE myhostname
+)
+
+# ---------------------
+MESSAGE( STATUS "GASPI_DIR:				" ${GASPI_DIR} )
+MESSAGE( STATUS "GASPI_INCLUDE:			" ${GASPI_INCLUDE} )
+MESSAGE( STATUS "FMM_DIR:				" ${FMM_DIR} )
+MESSAGE( STATUS "FMM_INCLUDE:				" ${FMM_INCLUDE} )
+MESSAGE( STATUS "FMM_HEADERS:				" ${FMM_HEADERS} )
+MESSAGE( STATUS "MPI_FOUND:				" ${MPI_FOUND} )
+MESSAGE( STATUS "MPI_INCLUDE_PATH:			" ${MPI_INCLUDE_PATH} )
+MESSAGE( STATUS "MPI_CXX_COMPILER:			" ${MPI_CXX_COMPILER} )
+MESSAGE( STATUS "myhostname:			" ${myhostname})
+MESSAGE( STATUS "src: 				" ${FMM_src_list})
+
+
 
 # ----------------  LINK
 target_link_libraries(fmm
 	${MPI_LIBRARIES} 
-	${NMTOOLS_LIB}
-	${BOOST_LIB}
 )
 
 if(MPI_COMPILE_FLAGS)
@@ -97,3 +95,4 @@ if(MPI_LINK_FLAGS)
 endif()
 
 set (CMAKE_VERBOSE_MAKEFILE 1)
+ 

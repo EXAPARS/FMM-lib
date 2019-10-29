@@ -28,11 +28,11 @@
 
 #include "Decomposition.hpp"
 #include "Gaspi_communicator.hpp"
+#include "Particles.hpp"
 #include "../Tools/types.hpp"
 #include "vec3D.hpp"
 
 #include "../Tools/fmm_tools.hpp"
-
 // TEMPORARILY USE a STL STACK
 #include <stack>
 
@@ -483,8 +483,8 @@ template<typename T>
 void Node<T>::divideOctree()
 {	
 //DEBUG virer Gaspi	
-	gaspi_rank_t rank;
-	gaspi_proc_rank(&rank);
+	//~ gaspi_rank_t rank;
+	//~ gaspi_proc_rank(&rank);
 	
 	// get the content of the node
 	T p = getContent();
@@ -596,6 +596,7 @@ void Node<T>::FillSendBufferAndIds(int * buffer, i64 * IDs, int targetLevel)
 template<typename T>
 void Node<T>::traverseAndFillLeavesAndIDs(int * buffer, i64 * IDs, int targetLevel)
 {
+	cout << "depth : " << getDepth() << ", target : " << targetLevel << ", _nbChildren : " << _nbChildren << endl;
 	if( getDepth() < targetLevel )
 	{
 		// Recursive calls

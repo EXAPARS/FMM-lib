@@ -164,5 +164,5 @@ void fmm_load_balance_(	i64 * nbElemPerNode, i64 * firstElemAdress, i64 * nbSons
 
 	delete Particles::_coordinates;
 	cout << "---- Load Balancing ----> TERMINATED !" <<endl;
-	int * counters = new int[size + 1]();
+	//int * counters = new int[size + 1]();
 }

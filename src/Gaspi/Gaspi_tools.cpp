@@ -47,8 +47,8 @@ void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultipl
 	// flush
 	flush_queues(nbQueues);
 	
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
+	//double t_begin, t_end;
+	//t_begin = MPI_Wtime();
 	gaspi_queue_id_t queue = 0;
 	gaspi_offset_t local_offset = localOffset;
     gaspi_offset_t remote_offset;
@@ -82,12 +82,14 @@ void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultipl
 	}
 	
 	//timing
-	t_end = MPI_Wtime();
-	add_time_sec(timingMsg, t_end - t_begin);
+	//~ t_end = MPI_Wtime();
+//~ #ifdef TIMING	
+	//~ add_time_sec(timingMsg, t_end - t_begin);
+//~ #endif
 }
 
 void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfElem,
-	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, int notifValue)
+	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, unsigned int notifValue)
 {
 	//double t_begin, t_end;
 	
@@ -130,7 +132,7 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 	{
 		gaspi_notification_id_t new_notif_id;
 		gaspi_notification_t new_notif_val;
-		double t_begin_loop, t_end_loop;
+		//double t_begin_loop, t_end_loop;
 
 		//methode 1 - avec GASPI_BLOCK
 		while(1)
@@ -161,10 +163,10 @@ void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfEl
 }
 
 void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
-	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, int notifValue, complex * buffer, complex * globalBuffer)
+	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, unsigned int notifValue, complex * buffer, complex * globalBuffer)
 {
-	double t_begin, t_end;
-	t_begin = MPI_Wtime();
+	//double t_begin, t_end;
+	//t_begin = MPI_Wtime();
 	
 	// wait to receive all messages from the others
 	gaspi_notification_id_t new_notif_id;
@@ -172,14 +174,14 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 	gaspi_notification_id_t notif_offset = _wsize * offsetMultiple;   
 
     int sender;
-    double t_begin_loop, t_end_loop;
+    //double t_begin_loop, t_end_loop;
     
     // receive from all ranks except 1
     for(int i=0; i< (_wsize-1); i++)
 	{
 		while(1)
 		{
-			t_begin_loop = MPI_Wtime();
+			//t_begin_loop = MPI_Wtime();
 			SUCCESS_OR_DIE(
 				gaspi_notify_waitsome(
 					destSeg,
@@ -189,10 +191,11 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 					GASPI_BLOCK
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec(timingPrefix + "_notify_waitsome", t_end_loop - t_begin_loop);
-			
-			t_begin_loop = MPI_Wtime();
+			//t_end_loop = MPI_Wtime();
+//~ #ifdef TIMING			
+			//~ add_time_sec(timingPrefix + "_notify_waitsome", t_end_loop - t_begin_loop);
+//~ #endif
+			//t_begin_loop = MPI_Wtime();
 			SUCCESS_OR_DIE(
 				gaspi_notify_reset(
 					destSeg, 
@@ -200,9 +203,10 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 					&new_notif_val
 				)
 			);
-			t_end_loop = MPI_Wtime();
-			add_time_sec(timingPrefix + "_notify_reset", t_end_loop - t_begin_loop);
-			
+			//t_end_loop = MPI_Wtime();
+//~ #ifdef TIMING			
+			//~ add_time_sec(timingPrefix + "_notify_reset", t_end_loop - t_begin_loop);
+//~ #endif
 			if (new_notif_val) 
 				break;
 		}
@@ -210,7 +214,7 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 		sender = new_notif_id - notif_offset;
 		
 		// test the notification value and update buffer
-		t_begin_loop = MPI_Wtime();
+		//t_begin_loop = MPI_Wtime();
 	    if (new_notif_val == notifValue)
 	    {
 		    // update the far field array		    		     
@@ -222,13 +226,17 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 				buffer[j] = buffer[j] + globalBuffer[offset + j];
 	        }
         }	
-		t_end_loop = MPI_Wtime();
-		add_time_sec(timingPrefix + "_write_back_unk", t_end_loop - t_begin_loop);
+		//t_end_loop = MPI_Wtime();
+//~ #ifdef TIMING		
+		//~ add_time_sec(timingPrefix + "_write_back_unk", t_end_loop - t_begin_loop);
+//~ #endif
 	}
 	
 	// timing
-	t_end = MPI_Wtime();
-	add_time_sec(timingPrefix + "_write_back_unk", t_end - t_begin); 
+	//~ t_end = MPI_Wtime();
+//~ #ifdef TIMING	
+	//~ add_time_sec(timingPrefix + "_write_back_unk", t_end - t_begin); 
+//~ #endif
 }
 
 /*void gaspi_loop_broadcast(int nbElts)
@@ -260,28 +268,28 @@ void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
 }*/
 
 /** CLEM GASPI TOOLS **/
-void print_gaspi_config()
-{
-	gaspi_config_t config; 
-	gaspi_config_get(&config);
+//~ void print_gaspi_config()
+//~ {
+	//~ gaspi_config_t config; 
+	//~ gaspi_config_get(&config);
 	
-	cout << "logger=" << config.logger << std::endl;
-	cout << "sn_port=" << config.sn_port << std::endl;
-	cout << "net_info=" << config.net_info << std::endl;
-	cout << "netdev_id=" << config.netdev_id << std::endl;
-	cout << "mtu=" << config.mtu << std::endl;
-	cout << "port_check=" << config.port_check << std::endl;
-	cout << "user_net=" << config.user_net << std::endl;
-	cout << "network=" << config.network << std::endl;
-	cout << "queue_depth=" << config.queue_depth << std::endl;
-	cout << "queue_num=" << config.queue_num << std::endl;
-	cout << "group_max=" << config.group_max << std::endl;
-	cout << "segment_max=" << config.segment_max << std::endl;
-	cout << "transfer_size_max=" << config.transfer_size_max << std::endl;
-	cout << "notification_num=" << config.notification_num << std::endl;
-	cout << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl;
-	cout << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl;
-	cout << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl;
-	cout << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl;
-	cout << "build_infrastructure=" << config.build_infrastructure << std::endl;
-}
+	//~ cout << "logger=" << config.logger << std::endl;
+	//~ cout << "sn_port=" << config.sn_port << std::endl;
+	//~ cout << "net_info=" << config.net_info << std::endl;
+	//~ cout << "netdev_id=" << config.netdev_id << std::endl;
+	//~ cout << "mtu=" << config.mtu << std::endl;
+	//~ cout << "port_check=" << config.port_check << std::endl;
+	//~ cout << "user_net=" << config.user_net << std::endl;
+	//~ cout << "network=" << config.network << std::endl;
+	//~ cout << "queue_depth=" << config.queue_depth << std::endl;
+	//~ cout << "queue_num=" << config.queue_num << std::endl;
+	//~ cout << "group_max=" << config.group_max << std::endl;
+	//~ cout << "segment_max=" << config.segment_max << std::endl;
+	//~ cout << "transfer_size_max=" << config.transfer_size_max << std::endl;
+	//~ cout << "notification_num=" << config.notification_num << std::endl;
+	//~ cout << "passive_queue_size_max=" << config.passive_queue_size_max << std::endl;
+	//~ cout << "passive_transfer_size_max=" << config.passive_transfer_size_max << std::endl;
+	//~ cout << "allreduce_buf_size=" << config.allreduce_buf_size << std::endl;
+	//~ cout << "allreduce_elem_max=" << config.allreduce_elem_max << std::endl;
+	//~ cout << "build_infrastructure=" << config.build_infrastructure << std::endl;
+//~ }

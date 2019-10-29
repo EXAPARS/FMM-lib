@@ -82,7 +82,7 @@ public:
 		
 	void initScalingParameters();
 	void scale();
-	
+	void scaleWithParams(double translate, double coeff);
 	
 	void setAttributes(const int & index, const int & nbParticles, const int & edge, const vec3D & o);
 	void setAttrBounds(const int & firstIndex, const int & lastIndex);

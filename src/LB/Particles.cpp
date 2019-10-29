@@ -128,7 +128,7 @@ void Particles::loadCoordinates(const string & file)
 		in.read(reinterpret_cast<char*> (Particles::_coordinates), 3 * _nbParticles * sizeof(double));		
 		in.close();
 	}
-	catch(ifstream::failure e)
+	catch(ifstream::failure &e)
 	{
 		cerr << "[erreur !] " << e.what() << endl;
 		exit(0);
@@ -165,7 +165,7 @@ void Particles::loadCoordinatesASCII(const string & file)
 		}
 		in.close();		
 	}
-	catch(ifstream::failure e)
+	catch(ifstream::failure &e)
 	{
 		cerr << "[erreur] " << e.what() << endl;
 		exit(0);
@@ -192,6 +192,16 @@ void scale(vec3D &coords)
 		coords[i] = (coords[i] + Particles::_translate) * Particles::_coeff;	
 	}
 }
+
+void Particles::scaleWithParams(double translate, double coeff)
+{	
+	for (int i=0; i<_nbParticles; i++)
+		for (int j=0; j<3; j++)
+		{
+			_coordinates[i][j] = (_coordinates[i][j] + translate) * coeff;	
+		}
+}
+
 
 vec3D scaleBack(vec3D &coords)
 {	
@@ -329,7 +339,7 @@ void Particles::loadCoordinatesASCIIWithoutQuantity(const string & file)
 		}
 		in.close();		
 	}
-	catch(ifstream::failure e)
+	catch(ifstream::failure &e)
 	{
 		cerr << "[erreur] " << e.what() << endl;
 		exit(0);
@@ -777,9 +787,9 @@ void Particles::compSepExpExact(int & sumNbItems, const char & histType, const i
 	for(int rank=0; rank < nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
 	
-	if (rank == 0)
+/*	if (rank == 0)
 		for (int i=0; i<nbSeps; i++)
-			cout << std::hex << " i : " << separators[0][i] << endl;
+			cout << std::hex << " i : " << separators[0][i] << endl;*/
 	
 	// dealloc
 	if (rank < nbWorkers)
@@ -885,9 +895,9 @@ void Particles::compSepHistApprox(const int & depth, const decompo & decomp,
 	for(int i=0; i<nbWorkers; i++)
 		separators[i] = new ui64[nbSeps+1](); // +1 is an ui64 to tag finished values.
 		
-		if (rank == 0)
+	/*if (rank == 0)
 		for (int i=0; i< nbSeps; i++)
-			cout << std::hex << "Init i : " << i << " " << separators[0][i] << endl;
+			cout << std::hex << "Init i : " << i << " " << separators[0][i] << endl;*/
 
 	int ** SepIdx = new int* [nbWorkers];
 	for(int i=0; i<nbWorkers; i++)
@@ -976,15 +986,15 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 				{
 					compSepM(globalHist, nbSeps, sumNbItems, localSep, k, nbUnderSep[k], chunkSize);				
 					separators[rank][k] += (((ui64)localSep) << (64 - prefixSize - chunkSize));
-					if (rank == 0)
+					/*if (rank == 0)
 						for (int i=0; i<nbSeps; i++)
-							cout << " before adjust on grid, i : " << i << " " << separators[0][i] << endl;
+							cout << " before adjust on grid, i : " << i << " " << separators[0][i] << endl;*/
 			
 					// Adjust on the Octree Grid if it's possible
 					adjustOnGrid(separators[rank], nbWorkers, nbSeps, (prefixSize + chunkSize), c, h, k, grid[dim], nbGridAxis);
-					if (rank == 0)
+					/*if (rank == 0)
 						for (int i=0; i<nbSeps; i++)
-							cout << " after adjust on grid, i : " << i << " " << separators[0][i] << endl;					
+							cout << " after adjust on grid, i : " << i << " " << separators[0][i] << endl;					*/
 				}
 			}
 		}
@@ -995,10 +1005,10 @@ void Particles::compSepMantApprox(const int & sumNbItems, const char & histType,
 	for(int rank=0; rank<nbWorkers; rank++)
 		MPI_Bcast(separators[rank], nbSeps+1, MPI_UNSIGNED_LONG, rank, MPI_COMM_WORLD);
 	
-	cout << " ----------- Comp sep mant approx --------------- " << endl; 
+/*	cout << " ----------- Comp sep mant approx --------------- " << endl; 
 	if (rank == 0)
 		for (int i=0; i<nbSeps; i++)
-			cout << std::hex << " i : " << i << " " << separators[0][i] << endl;
+			cout << std::hex << " i : " << i << " " << separators[0][i] << endl;*/
 	
 	// dealloc
 	if (rank < nbWorkers)

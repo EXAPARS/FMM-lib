@@ -23,7 +23,7 @@
 #include "GASPI.h"
 #include "../Tools/Complex.hpp"
 #include "../Gaspi/Gaspi_FF_communicator.hpp"
-#include "measure.hpp"
+//#include "measure.hpp"
 
 extern "C"
 {
@@ -48,15 +48,25 @@ extern "C"
 	void gaspi_recv_ff_multi_(i64 * niv, complex * ff, i64 * idom);	
 	void gaspi_task_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
 	void gaspi_task_recv_ff_(i64 * niv, complex * ff, i64 * idom);
-	void gaspi_task_chunk_send_ff_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
-	void gaspi_task_chunk_recv_ff_(i64 * niv, complex * ff, i64 * idom);
+	
+	// chunks
+	void gaspi_task_chunk_send_(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
+	void gaspi_task_chunk_recv_(i64 * niv, complex * ff, i64 * idom);
+
+	// total tasks
+	void gaspi_send_chunk(i64 * start, i64 * stop, i64 * niv, complex * ff, i64 * idom);
 
 	// unknowns
 	void fmm_handle_unknowns_broadcast_(complex * xtmp, complex * xtmp2, i64 * size);
 	void fmm_handle_unknowns_allreduce_();
 	
 	// debug tools
-	void fmm_dump_(complex * tab, i64 * size);
+	void fmm_dump_cplx_(complex * tab, i64 * size, i64 * fileNum);
+	void fmm_dump_i8_(i64 * tab, i64* size, i64 * fileNum);
+	void fmm_dump_2ble_(double * tab, i64 * size, i64 * fileNum);
+	//
+	void fmm_raz_i8_(i64 * tab, i64* size);
+
 
 	// multimat
 	void gaspi_init_ff_(i64 * max_send_terms, i64 * max_recv_terms, i64 * nbMat, i64 * max_send_nodes, i64 * max_recv_nodes, i64 * includeLevcom);

@@ -81,7 +81,7 @@ void displayMpiMSG (int source, int tag)
 void debug(string prefix, string message)
 {
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	string file = to_string((unsigned long long)rank) + "_" + prefix + ".txt";
+	string file = prefix + "_" + to_string((unsigned long long)rank) + ".txt";
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	out << message << endl;
@@ -100,7 +100,8 @@ void dumpMSG(string prefix)
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	for (auto i:msg)
-		out << i << endl;
+		out << i << " ";
+	out << endl;
 	out.close();
 	msg.clear();	
 }
@@ -163,14 +164,14 @@ void dfs_dump_spectre_octree(string prefix, i64 * nbElemPerNode, i64 * nbSonsPer
 		// for each son, write and call
 		i64 sonID;
 		i64 owner;
-		i64 nbElem;
+		//i64 nbElem;
 		string style;
 		string color;
 		for (int i=0; i<nbSons; i++)
 		{
 			sonID = firstSonID + i;
 			owner = nodeOwner[sonID];
-			nbElem = nbElemPerNode[sonID];
+			//nbElem = nbElemPerNode[sonID];
 			out << nodeID << " -> " << sonID << ";" << endl;
 			out << sonID << "[label=" << '"' << "[" << sonID << "] " << "\\n " /*<< nbElem << "-" << owner */<< "C(" << int(centers[sonID*3]) << "," << int(centers[(sonID*3)+1]) << ",\\n" << int(centers[(sonID*3)+2]) << ")" << '"' << "];"  << endl;
 			/* TODO : Au secours que c'est moche --> faire un IO manip*/
@@ -357,7 +358,7 @@ void loadAndDiffData(const string & file1, const string & file2)
 		in1.close();
 		in2.close();
 	}
-	catch(ifstream::failure e)
+	catch(ifstream::failure &e)
 	{
 		cerr << "[erreur] " << e.what() << endl;
 		exit(0);

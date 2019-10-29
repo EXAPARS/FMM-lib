@@ -32,7 +32,6 @@
 #include "Complex.hpp"
 
 
-
 using namespace std;
 
 void announce_axis(string axis, int rank);
@@ -41,6 +40,7 @@ void displayDiff (string info, int * tab, int size);
 void displayMpiMSG (int source, int tag);
 void dfs_dump_spectre_octree(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers);
 void dfs_dump_centers(string prefix, i64 * nbSonsPerNode, i64 * firstSonId, i64 nodeID, double * centers);
+
 
 void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers, 
 	i64 * endlev, i64 * nbLevels);
@@ -57,14 +57,10 @@ string to_string(T const& value)
 	return sstr.str();
 }
 
-void bfs_dump_centers_level_by_level(string prefix, i64 * nbElemPerNode, i64 * nbSonsPerNode, i64 * firstSonId, i64 * nbNodes, i64 * nodeOwner, i64 nodeID, double * centers, 
-	i64 * endlev, i64 * nbLevels);
 
 void accumulMSG(string message);
 
 void dumpMSG(string prefix);
-
-string convert(int a);
 
 
 /** templates **/
@@ -80,9 +76,9 @@ void displayTab(string info, T * tab, int size, ostream & out=cout)
 
 /** DUMP BUFFERS **/
 template<typename T>
-void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
+void dumpBuffer(int rank, T * buffer, int size, int fileNum, string fileName, string message)
 {
-	string file = fileName + "_" + to_string((unsigned long long)rank) + ".txt";
+	string file = fileName + "_" + to_string((unsigned long long)rank) + "_file_" + to_string((unsigned long long)fileNum) + ".txt";
 	ofstream out;
 	out.open (file, std::ofstream::out | std::ofstream::app);
 	
@@ -91,6 +87,7 @@ void dumpBuffer(int rank, T * buffer, int size, string fileName, string message)
 		cerr << "[dumpBuffer] Buffer is not allocated."; exit(-1);
 	}
 	out << message << endl;
+	out << "size : " << size << endl;
 	for (int i=0; i<size; i++)
 		out << buffer[i] << "\n";
 	out <<  endl;

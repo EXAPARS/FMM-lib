@@ -48,6 +48,7 @@ private:
 	const int _nbLeaves;
 
 public:
+	// constructeur pour utilisation DA
 	LoadBalancer<T,LBPolicy>(Node<T> * n, const decompo & nb1ers, const double & dist, double tol,
 		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator * gComm, double * nodeCenters, int64_t * nodeOwners, 
 		const int & nbLeaves)
@@ -65,7 +66,28 @@ public:
 		, _nbLeaves(nbLeaves)
 	{}
 	
+	// constructeur pour utilisation FMM-viz 	
+	LoadBalancer<T,LBPolicy>(Node<T> * n, const decompo & nb1ers, const double & dist, double tol,
+		const int & first, const int & last, Gaspi_communicator * gComm)
+		: _tree(n)
+		, _nb1ers(nb1ers)
+		, _dist(dist)
+		, _tol(tol)
+		, _first(first)
+		, _last(last)
+		, _gComm(gComm)
+		/* non renseignés*/
+		, _nodeOwners(nullptr)
+		, _maxEdge(0)
+		, _center(vec3D(0,0,0))
+		, _nodeCenters(nullptr)
+		, _nbLeaves(0)
+	{}
+	
 	virtual void run() const { loadBalance(_tree, _nb1ers, _dist, _tol, _first, _last, _maxEdge, _center, *_gComm, _nodeCenters, _nodeOwners, _nbLeaves); }
+	
+	
+
 };
 
 #endif

@@ -24,8 +24,8 @@
 #include <iostream>
 
 #include "../Tools/Complex.hpp"
-#include "measure.hpp"
-#include "byteCounter.hpp"
+//~ #include "measure.hpp"
+//~ #include "byteCounter.hpp"
 
 void flush_queues(int nbQueues);
 
@@ -35,7 +35,7 @@ void broadcast_to_global_buffer(int nbQueues, int localOffset, int offsetMultipl
 	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t srcSeg, gaspi_segment_id_t destSeg, int notifValue, string timingMsg);
 
 void receive_allReduce(int offsetMultiple, string timingPrefix, int nbElts,
-	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, int notifValue, complex * buffer, complex * globalBuffer);
+	gaspi_rank_t _wsize, gaspi_segment_id_t destSeg, unsigned int notifValue, complex * buffer, complex * globalBuffer);
 
 void gaspi_loop_broadcast();
 
@@ -53,13 +53,13 @@ void copy_local_data(T * destBuffer, T * srcBuffer, int nbElts, string timingMsg
 	}
 	
 	t_end = MPI_Wtime();
-	add_time_sec(timingMsg + "_wb", t_end - t_begin);
+	//add_time_sec(timingMsg + "_wb", t_end - t_begin);
 }
 
 
 // broadcast
 void broadcast_buffer(int nbQueues, int offsetMultiple, int nbElts, int sizeOfElem,
-	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, int notifValue);
+	gaspi_rank_t _rank, gaspi_rank_t _wsize, gaspi_segment_id_t seg, unsigned int notifValue);
 
 // clem 
 void print_gaspi_config();
@@ -77,4 +77,5 @@ do\
 		exit (EXIT_FAILURE);\
 	}\
 } while (0)
+
 #endif

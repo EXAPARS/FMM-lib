@@ -27,11 +27,11 @@
 #include "../Tools/types.hpp"
 #include "../Tools/Complex.hpp"
 #include "../Tools/fmm_tools.hpp"
-#include <cilk/cilk.h>
+//#include <cilk/cilk.h>
 
-#include "measure.hpp"
+/*#include "measure.hpp"
 #include "byteCounter.hpp"
-
+*/
 
 #include <iostream>
 using namespace std;
@@ -42,7 +42,7 @@ public:
 	// processes info
 	gaspi_rank_t _wsize;
 	gaspi_rank_t _rank;
-
+	
 /******************************
  * GASPI SEGMENTS --> BUFFERS *
  ******************************/
@@ -108,11 +108,27 @@ public:
 	int ** _Infos_sendLocalOffsets_counter = nullptr; 				// Counter to add to _Infos_sendLocalOffsets
 	int ** _Infos_sendRemoteOffsets_counter = nullptr;				// Counter to add to _Infos_sendRemoteOffsets
 	
-	int * _threadSafeCounters = nullptr;
-	int * _availableCounters = nullptr;
+	//int * _threadSafeCounters = nullptr;
+	//int * _availableCounters = nullptr;
 	int _numCounter = 0;
 	
 	int _nbThreads = 0;
+	
+	/** Tasks **/
+	int ** _max_packets = nullptr; 			// max packets to receive, per oct and dest (no level distinction)
+	int ** _write_counters_ptr = nullptr;	// iOct, dest
+	int *** _write_counters = nullptr;		// iOct, dest, packet
+	
+	int _gaspiChunkSize = 2048000; // bytes 4096000 ou 2048000
+	int _notifCpt = 0;
+	
+	// Final Tasks
+	int ** _ReceivedInfosCpt = nullptr;		// per domain and src
+	int ** _ReceivedFFTermsCpt = nullptr;	// per domain and src
+	
+	int ** _SendInfosCpt = nullptr;		// per domain and src
+
+	
 
 /************************************
  * KEEPERS  *
@@ -133,7 +149,11 @@ public:
     int *** _stop_recv  = nullptr;
     int _nbQueues;
     int *** _Received = nullptr;		// per domain, per level
-    int * _accumul = nullptr;;
+    int * _accumul = nullptr;
+    
+    int ** _ExpectSrc = nullptr;	// per domain, per rank, NO level distinction
+    int ** _CountDest = nullptr;	// nbNodes, per domain, per rank, NO level distonction
+    int ** _CountDestTerms = nullptr;	// nbTerms, per domain, per rank, NO level distonction
           
     
 /******************
@@ -167,6 +187,8 @@ public:
 	int _msgID;
 	int _max_comm;
 	pthread_mutex_t _mutex;
+	pthread_mutex_t _mutex1;
+
 
 public:
 	Gaspi_FF_communicator(i64 * nb_send, int nb_send_sz, i64 * nb_recv, int nb_recv_sz, i64 * sendnode, int sendnode_sz,
@@ -203,10 +225,40 @@ public:
 
 	void send_task_ff_level(int level, complex * ff, int iOct, int start, int stop);
 	void recv_task_ff_level(int level, complex * ff, int iOct);
+	void recv_task_ff_level_rest(int level, complex * ff, int iOct);
+
 	void recv_task_ff(int level, complex * ff, int iOct);
 	void send_task_ff(int level, complex * ff, int iOct, int start, int stop);
-	void send_task_ff_dbg(int level, complex * ff, int iOct, int start, int stop);
-	void send_task_ff_reorg(int level, complex * ff, int iOct, int start, int stop);
+	//void send_task_ff_dbg(int level, complex * ff, int iOct, int start, int stop);
+	void send_task_ff_dbg2(int level, complex * ff, int iOct, int start, int stop); // en cours pour tasks
+
+/*-----------------------------------------------------*/
+	// total tasks --> A eliminer plus tard
+	void send_task_ff_last(int level, complex * ff, int iOct, int start, int stop);
+	void send_chunk_encoded(int iOct, int dest, int level);	
+	
+	void recv_task_ff_any_but_complete(int level, complex * ff, int iOct);
+	void recv_task_ff_last_old(int level, complex * ff, int iOct);
+	void updateFarFieldsFromInfosEncoded(int src, int level, complex * ff, int counter, int iOct);
+	
+	/* new file */
+	void send_task_ff_dbg2_last(int level, complex * ff, int iOct, int start, int stop);
+	void send_task_ff_chunk(int level, complex * ff, int iOct, int start, int stop);
+
+	void send_chunk_dbg_last(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);
+	void send_chunk_dbg_last_v2(int iOct, int dest, int nbTerms, int nbInfos, bool destIsFinished);
+	void send_chunk_dbg_last_notif_each(int iOct, int dest, int level, int nbTerms, int nbInfos, bool levelIsFinished);
+	
+	
+	
+	void recv_task_ff_last(int level, complex * ff, int iOct);
+	void recv_task_ff_any_but_complete_level(int level, complex * ff, int iOct);
+	
+	void updateFarFieldChunksFromInfos_last(int src, int level, complex * ff, int nbNodes, int iOct);
+	void updateFarFieldChunksFromInfos_last_withoutLevel(int src, /*int level,*/ complex * ff, int nbNodes, int iOct, int &cpt, int expectedLevel);
+	
+	/* end new file */
+/*-----------------------------------------------------*/
 
 
 	// multimat version
@@ -228,6 +280,10 @@ public:
 	void fill_attributes(int iOct, int nivterm, int levcom, i64 * fniv, i64 * fsend, i64 * send, i64 * frecv, i64 * recv, i64 * nst, i64 * nsp,
 		i64 * endlev, i64 * codech, i64 * nb_send, i64 * nb_recv, i64 * sendnode, i64 * recvnode, int nb_send_sz, int nb_recv_sz, int sendnode_sz, int recvnode_sz);
 	void alloc_attributes();
+	
+	/* --- tasks --- */
+	void fill_max_packets(int iOct);
+	void alloc_and_fill_write_counters(int iOct);
 	
 	//debug
 	void fmm_raz_gaspi_segments(int max_send_terms, int max_recv_terms, int max_send_nodes, int max_recv_nodes);

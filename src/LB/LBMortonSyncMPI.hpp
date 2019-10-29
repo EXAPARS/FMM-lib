@@ -80,13 +80,15 @@ void MortonSyncMPI::loadBalance(Node<T> * n, const decompo & nb1ers, const doubl
 		// alloc
 		globalBuffer = new int [bufferSize]();
 		IDsBuffer = new i64[bufferSize]();
-		
+	
 		// fill with information from level divHeight
 		n->FillSendBufferAndIds(globalBuffer, IDsBuffer, divHeight);
-		
-		// Spectre : No reduction needed : multiply by world size
+
+		// Spectre : No reduction needed : multiply by world size (same input for all ranks)
 		for (int i=0; i<bufferSize; i++)
+		{
 			globalBuffer[i] *= wsize;
+		}
 	} 
 	
 	// Everybody updates targets and meanNbItems, SPECTRE : same input -> meanNbItems=number of items per rank
@@ -130,6 +132,9 @@ void MortonSyncMPI::initializeSeps(Node<T> * n, int *globalBuffer, i64 * IDs, co
 	if (rank == 0)
 		computeMortonSeps(n, globalBuffer, IDs, nbLeaves, nbSeps, targets, nbUntilNode, sepNodes, rootNodeID, divHeight);
 	
+//	cout << nbLeaves << nbLeaves << endl;
+	
+	
 	// Broadcasts sepNodes and nbBeforeBox
 	MPI_Bcast(sepNodes, nbSeps, MPI_INT64_T, 0, MPI_COMM_WORLD);
 	MPI_Bcast(nbUntilNode, nbSeps, MPI_INT, 0, MPI_COMM_WORLD);
@@ -143,7 +148,7 @@ void MortonSyncMPI::loopRefine(Node<T> * n, const int & nbSeps, int64_t * sepNod
 	int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	int finished = 0;
 	Node<T> * tmpNode = nullptr;
-	
+	//cout << "loop refine" << endl;
 	while (!finished)
 	{
 		// update diff and stop arrays - (diff without the box containing the separator)
@@ -152,6 +157,10 @@ void MortonSyncMPI::loopRefine(Node<T> * n, const int & nbSeps, int64_t * sepNod
 			diff[i] = abs((targets[i] - nbUntilNode[i]))/(meanNbItems*1.0);
 			if (!stop[i])
 			{
+				cout << "nb seps : " << nbSeps << endl;
+				for (int i=0; i<nbSeps; i++)
+					cout << sepNodes[i] << endl;
+				
 				tmpNode = n->getNodePtrF(sepNodes[i]);
 				if (tmpNode->isLeaf())
 					stop[i] = 1;
@@ -191,7 +200,7 @@ void MortonSyncMPI::refine(Node<T> * n, int64_t * sepNodes, int * nbUntilNode, d
 	// Test if the current node has a node to refin
 	int mySep = rank-1;
 	int64_t myNode = -1;
-	Node<T> * tmpNode = nullptr;
+	//Node<T> * tmpNode = nullptr;
 	if ((rank > 0) &&  (diff[mySep] > tolerance))
 		myNode = sepNodes[mySep];
 

@@ -32,8 +32,6 @@ public:
 		const int & first, const int & last, const double & maxEdge, const vec3D & center, Gaspi_communicator & gComm, 
 		double * nodeCenters, i64 * nodeOwners, int nbLeaves) const 
 	{ 
-		cout << "--> Exact Histogram load balancing" << endl; 
-
 		// BFS list
 		list <Node<T>*> bfsList;
 		bfsList.push_back(n);
